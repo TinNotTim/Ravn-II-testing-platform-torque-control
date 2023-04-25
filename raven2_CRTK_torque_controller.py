@@ -33,6 +33,8 @@ import geometry_msgs.msg
 import sensor_msgs.msg
 
 import crtk_msgs.msg # crtk_msgs/operating_state
+#todo import the msgs.type of raven state
+from reven_2.msg import raven_state
 
 class raven2_crtk_torque_controller():
 
@@ -84,10 +86,10 @@ class raven2_crtk_torque_controller():
         #self.__subscriber_operating_state = rospy.Subscriber(topic, crtk_msgs.msg.operating_state, self.__callback_operating_state)
 
         topic = "/arm2/measured_js" # [IMPT] This is actually listening to left arm, because the RAVEN I use has a mismatch that the arm1's jpos is published on arm2
-        self.__subscriber_measured_js = rospy.Subscriber(topic, sensor_msgs.msg.JointState, self.__callback_measured_jp_1)
+        self.__subscriber_measured_js = rospy.Subscriber(topic, raven_2.msg.raven_state, self.__callback_measured_jp_1)
 
         topic = "ravenstate" # [IMPT] This is actually listening to left arm, because the RAVEN I use has a mismatch that the arm1's jpos is published on arm2
-        self.__subscriber_ravenstate = rospy.Subscriber(topic, sensor_msgs.msg.JointState, self.__callback_ravenstate)
+        self.__subscriber_ravenstate = rospy.Subscriber(topic, raven_2.msg.raven_state, self.__callback_ravenstate)
 
 
         # torque publishers
