@@ -30,6 +30,7 @@ import utils_r2_torque_keyboard_controller as utils
 import rospy
 import numpy as np
 import raven2_CRTK_torque_controller
+import copy
 
 
 
@@ -41,16 +42,17 @@ import raven2_CRTK_torque_controller
 #     raven_state_index = offset + joint + 1
  
 target_torques = np.array([0, 0, 0, 0, 20.0, 20.0, 0, 0])  #assume these parameters are assignend by other higher controller 
-control_torques = target_torques
+#control_torques = copy.deepcopy(target_torques)
+control_torques = np.zeros(8)
 max_torque = 50.0 
 
 #these flags indicate the on/off of the compensation
-compensation_master = 1 
+compensation_master = 1
 coulomb_compensation = 1
 viscous_compensation = 1
 
 #define compensation factor
-coulomb_factor = 0.1
+coulomb_factor = 0.5
 viscous_factor = 0.001
 
 
@@ -67,12 +69,12 @@ r2_tor_ctl = raven2_CRTK_torque_controller.raven2_crtk_torque_controller(name_sp
 if compensation_master:
     rospy.loginfo("Friction compensation is on")
     while(True):
-        try:        	
-            motor_poses = r2_tor_ctl.ravenstate_cur.mpos
+        try:
+            #motor_poses = r2_tor_ctl.ravenstate_cur.mpos
             motor_velocities = r2_tor_ctl.ravenstate_cur.mvel
-            rospy.loginfo("Current vel = ", motor_velocities)
-            rospy.loginfo("Test - got ravenstate")
-            rospy.loginfo("Current command = ", control_torques)
+            print("Current vel = ", motor_velocities)
+            #rospy.loginfo("Test - got ravenstate")
+            print("Current command = ", control_torques)
         except:
             rospy.loginfo("No ravenstate yet")
             continue
@@ -95,14 +97,16 @@ if compensation_master:
 	        if viscous_compensation:
 	            control_torques[i] += np.clip(motor_velocities[i+8] * viscous_factor, -5, 5)
 
-		cmd = np.clip(control_torques, -max_torque, max_torque)
-		r2_tor_ctl.pub_torque_command(cmd)
-		rospy.loginfo("command sent!")
-		r.sleep()
+        cmd = np.append(np.clip(control_torques, -max_torque, max_torque), np.zeros(8))
+        r2_tor_ctl.pub_torque_command(cmd)
+        print("command = ", cmd)
+        rospy.loginfo("command sent!")
+        r.sleep()
 
 
 else:
     rospy.loginfo("Friction compensation is off")
+    control_torques = target_torques*1
     cmd = np.append(control_torques ,np.zeros(8))
     while(True):
         r2_tor_ctl.pub_torque_command(cmd)
