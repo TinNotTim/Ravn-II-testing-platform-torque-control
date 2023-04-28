@@ -33,9 +33,15 @@ import raven2_CRTK_torque_controller
 
 
 
-joint = 5
-target_torque = 20.0  #assume this parameter is assignend by other higher controller 
-control_torque = target_torque
+# joint = 4 #for crtk, use joint to index
+# offset = 7
+# if joint < 4:
+#     raven_state_index = offset + joint #for ravenstate, use
+# else:
+#     raven_state_index = offset + joint + 1
+ 
+target_torques = np.array([0, 0, 0, 0, 20.0, 20.0, 0, 0])  #assume these parameters are assignend by other higher controller 
+control_torques = target_torques
 max_torque = 50.0 
 
 #these flags indicate the on/off of the compensation
@@ -48,7 +54,7 @@ coulomb_factor = 0.1
 viscous_factor = 0.001
 
 
-rospy.init_node('force_unit_joint5', anonymous=True)
+rospy.init_node('force_unit_joint45', anonymous=True)
 rospy.loginfo("Node is created")
 
 #set the rate to 100 Hz
@@ -56,47 +62,48 @@ r = rospy.Rate(100)
 
 r2_tor_ctl = raven2_CRTK_torque_controller.raven2_crtk_torque_controller(name_space = ' ', robot_name_1 = 'arm1', robot_name_2 = 'arm2', grasper_name = 'grasp1')
 
+
+
 if compensation_master:
     rospy.loginfo("Friction compensation is on")
     while(True):
-        try:
-            motor_pose = r2_tor_ctl.ravenstate_cur.mpos[13]
-            motor_velocity = r2_tor_ctl.ravenstate_cur.mvel[13]
-            rospy.loginfo("Current vel = %f, current torque command = %i", motor_velocity, control_torque)
+        try:        	
+            motor_poses = r2_tor_ctl.ravenstate_cur.mpos
+            motor_velocities = r2_tor_ctl.ravenstate_cur.mvel
+            rospy.loginfo("Current vel = ", motor_velocities)
+            rospy.loginfo("Test - got ravenstate")
+            rospy.loginfo("Current command = ", control_torques)
         except:
             rospy.loginfo("No ravenstate yet")
             continue
 
-        if coulomb_compensation:
-            #define the motor behavior based on velocity
-            if motor_velocity > 0.2: #forward drive
-                control_torque = target_torque + target_torque * coulomb_factor
+        for i in range(len(target_torques)):
+		#calculate the control torque for each joint
+	        if coulomb_compensation:
+	            #define the motor behavior based on velocity
+	            if motor_velocities[i+8] > 0.2: #forward drive
+	                control_torques[i] = target_torques[i] + target_torques[i] * coulomb_factor
 
-            elif motor_velocity < -0.2: #backdrive
-                control_torque = target_torque - target_torque * coulomb_factor
-        
-            else: #static
-                control_torque = target_torque
+	            elif motor_velocities[i+8] < -0.2: #backdrive
+	                control_torques[i] = target_torques[i] - target_torques[i] * coulomb_factor
+	        
+	            else: #static
+	                control_torques[i] = target_torques[i]
 
 
 
-        if viscous_compensation:
-            control_torque += np.clip(motor_velocity * viscous_factor, -5, 5)
+	        if viscous_compensation:
+	            control_torques[i] += np.clip(motor_velocities[i+8] * viscous_factor, -5, 5)
 
-        #only send out control command if the value change
-        if control_torque != target_torque and control_torque <= max_torque and control_torque >= -max_torque:
-            cmd = np.zeros((16))
-            cmd[joint] = control_torque
-            r2_tor_ctl.pub_torque_command(cmd)
-            rospy.loginfo("command sent!")
-        
-        r.sleep()
+		cmd = np.clip(control_torques, -max_torque, max_torque)
+		r2_tor_ctl.pub_torque_command(cmd)
+		rospy.loginfo("command sent!")
+		r.sleep()
 
 
 else:
     rospy.loginfo("Friction compensation is off")
-    cmd = np.zeros((16))
-    cmd[joint] = control_torque
+    cmd = np.append(control_torques ,np.zeros(8))
     while(True):
         r2_tor_ctl.pub_torque_command(cmd)
         r.sleep()
