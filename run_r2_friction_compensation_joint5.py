@@ -39,12 +39,12 @@ control_torque = target_torque
 max_torque = 50.0 
 
 #these flags indicate the on/off of the compensation
-compensation_master = 1 
+compensation_master = 1
 coulomb_compensation = 1
 viscous_compensation = 1
 
 #define compensation factor
-coulomb_factor = 0.1
+coulomb_factor = 0.5
 viscous_factor = 0.001
 
 
