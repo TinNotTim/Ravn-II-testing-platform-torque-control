@@ -34,18 +34,20 @@ import raven2_CRTK_torque_controller
 
 
 joint = 5
-target_torque = 20.0  #assume this parameter is assignend by other higher controller 
+target_torque = 50.0  #assume this parameter is assignend by other higher controller
+coulomb_offset = 18
 control_torque = target_torque
-max_torque = 50.0 
+max_torque = 80.0 
 
 #these flags indicate the on/off of the compensation
-compensation_master = 1
+compensation_master = 0
 coulomb_compensation = 1
-viscous_compensation = 1
+viscous_compensation = 0
 
 #define compensation factor
-coulomb_factor = 0.5
-viscous_factor = 0.001
+#coulomb_factor = 0.5
+
+viscous_factor = 0.0004
 
 
 rospy.init_node('force_unit_joint5', anonymous=True)
@@ -67,13 +69,16 @@ if compensation_master:
             rospy.loginfo("No ravenstate yet")
             continue
 
+        control_torque = target_torque
         if coulomb_compensation:
             #define the motor behavior based on velocity
-            if motor_velocity > 0.2: #forward drive
-                control_torque = target_torque + target_torque * coulomb_factor
+            if motor_velocity > 50: #forward drive
+                #control_torque = target_torque + target_torque * coulomb_factor
+                control_torque = target_torque + coulomb_offset
 
-            elif motor_velocity < -0.2: #backdrive
-                control_torque = target_torque - target_torque * coulomb_factor
+            elif motor_velocity < -50: #backdrive
+                #control_torque = target_torque - target_torque * coulomb_factor
+                control_torque = target_torque - coulomb_offset
         
             else: #static
                 control_torque = target_torque
@@ -81,14 +86,23 @@ if compensation_master:
 
 
         if viscous_compensation:
-            control_torque += np.clip(motor_velocity * viscous_factor, -5, 5)
+            control_torque += np.clip(motor_velocity * viscous_factor, -30, 30)
 
         #only send out control command if the value change
         if control_torque != target_torque and control_torque <= max_torque and control_torque >= -max_torque:
+
             cmd = np.zeros((16))
             cmd[joint] = control_torque
             r2_tor_ctl.pub_torque_command(cmd)
             rospy.loginfo("command sent!")
+
+        elif control_torque > 80 or control_torque < -80:
+            cmd = np.zeros((16))
+            r2_tor_ctl.pub_torque_command(cmd)
+            print('command too large, exit')
+            sys.exit()
+        
+            
         
         r.sleep()
 
