@@ -31,6 +31,7 @@ import rospy
 import numpy as np
 import raven2_CRTK_torque_controller
 import copy
+import math
 
 
 
@@ -41,10 +42,10 @@ import copy
 # else:
 #     raven_state_index = offset + joint + 1
  
-target_torques = np.array([0, 0, 0, 0, 20.0, 20.0, 0, 0])  #assume these parameters are assignend by other higher controller 
+target_torques = np.array([0, 0, 0, 0, 50.0, 50.0, 0, 0])  #assume these parameters are assignend by other higher controller 
 #control_torques = copy.deepcopy(target_torques)
 control_torques = np.zeros(8)
-max_torque = 50.0 
+max_torque = 80.0 
 
 #these flags indicate the on/off of the compensation
 compensation_master = 1
@@ -52,7 +53,8 @@ coulomb_compensation = 1
 viscous_compensation = 1
 
 #define compensation factor
-coulomb_factor = 0.5
+# coulomb_factor = 0.5
+coulomb_offset = 18
 viscous_factor = 0.001
 
 
@@ -74,7 +76,7 @@ if compensation_master:
             motor_velocities = r2_tor_ctl.ravenstate_cur.mvel
             print("Current vel = ", motor_velocities)
             #rospy.loginfo("Test - got ravenstate")
-            print("Current command = ", control_torques)
+            print("Current command = ", target_torques)
         except:
             rospy.loginfo("No ravenstate yet")
             continue
@@ -83,14 +85,28 @@ if compensation_master:
 		#calculate the control torque for each joint
 	        if coulomb_compensation:
 	            #define the motor behavior based on velocity
-	            if motor_velocities[i+8] > 0.2: #forward drive
-	                control_torques[i] = target_torques[i] + target_torques[i] * coulomb_factor
+	            # if motor_velocities[i+8] > 0.2: #forward drive
+	            #     control_torques[i] = target_torques[i] + target_torques[i] * coulomb_factor
 
-	            elif motor_velocities[i+8] < -0.2: #backdrive
-	                control_torques[i] = target_torques[i] - target_torques[i] * coulomb_factor
+	            # elif motor_velocities[i+8] < -0.2: #backdrive
+	            #     control_torques[i] = target_torques[i] - target_torques[i] * coulomb_factor
+	        
+	            # else: #static
+	            #     control_torques[i] = target_torques[i]
+
+	            if motor_velocities[i+8] > 100: #forward drive
+	                #control_torque = target_torque + target_torque * coulomb_factor
+	                control_torques[i] = target_torques[i] + coulomb_offset
+
+	            elif motor_velocities[i+8] < -100: #backdrive
+	                #control_torque = target_torque - target_torque * coulomb_factor
+	                control_torques[i] = target_torques[i] - coulomb_offset
 	        
 	            else: #static
-	                control_torques[i] = target_torques[i]
+	            	if target_torques[i] != 0:
+		                # control_torque = 12 + abs(motor_velocity) * (target_torque - 12)/100
+		                control_torques[i] = target_torques[i] - (100 - math.fabs(motor_velocities[i+8]))*(target_torques[i] - 22)/100
+		                #control_torque = 12
 
 
 

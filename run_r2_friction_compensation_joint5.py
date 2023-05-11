@@ -30,17 +30,18 @@ import utils_r2_torque_keyboard_controller as utils
 import rospy
 import numpy as np
 import raven2_CRTK_torque_controller
+import math
 
 
 
 joint = 5
-target_torque = 50.0  #assume this parameter is assignend by other higher controller
-coulomb_offset = 18
+target_torque = 30.0  #assume this parameter is assignend by other higher controller
+coulomb_offset = 15
 control_torque = target_torque
 max_torque = 80.0 
 
 #these flags indicate the on/off of the compensation
-compensation_master = 0
+compensation_master = 1
 coulomb_compensation = 1
 viscous_compensation = 0
 
@@ -49,6 +50,7 @@ viscous_compensation = 0
 
 viscous_factor = 0.0004
 
+vel_rec = [] # a list that stores last 50 motor velocity
 
 rospy.init_node('force_unit_joint5', anonymous=True)
 rospy.loginfo("Node is created")
@@ -64,24 +66,64 @@ if compensation_master:
         try:
             motor_pose = r2_tor_ctl.ravenstate_cur.mpos[13]
             motor_velocity = r2_tor_ctl.ravenstate_cur.mvel[13]
+            vel_rec.append(motor_velocity)
+            vel_rec = vel_rec[-200:]
             rospy.loginfo("Current vel = %f, current torque command = %i", motor_velocity, control_torque)
         except:
             rospy.loginfo("No ravenstate yet")
             continue
 
         control_torque = target_torque
+        # if coulomb_compensation:
+        #     #define the motor behavior based on velocity
+        #     if motor_velocity > 50: #forward drive
+        #         #control_torque = target_torque + target_torque * coulomb_factor
+        #         control_torque = target_torque + coulomb_offset
+
+        #     elif motor_velocity < -50: #backdrive
+        #         #control_torque = target_torque - target_torque * coulomb_factor
+        #         control_torque = target_torque - coulomb_offset
+        
+        #     else: #static
+        #         control_torque = target_torque
+        #         #control_torque = 12
         if coulomb_compensation:
             #define the motor behavior based on velocity
-            if motor_velocity > 50: #forward drive
+            if motor_velocity > 200: #forward drive
                 #control_torque = target_torque + target_torque * coulomb_factor
                 control_torque = target_torque + coulomb_offset
 
-            elif motor_velocity < -50: #backdrive
+            elif motor_velocity < -200: #backdrive
                 #control_torque = target_torque - target_torque * coulomb_factor
                 control_torque = target_torque - coulomb_offset
         
             else: #static
-                control_torque = target_torque
+                ## control_torque = 12 + abs(motor_velocity) * (target_torque - 12)/100
+                ##control_torque = (target_torque + np.sign(motor_velocity) * coulomb_offset) - (200 - math.fabs(motor_velocity))*((target_torque + np.sign(motor_velocity) * coulomb_offset) - 22)/200
+
+                if motor_velocity > 0:
+                    control_torque = target_torque + coulomb_offset * (motor_velocity/200.0)
+                elif motor_velocity < 0:
+                    control_torque = (target_torque + np.sign(motor_velocity) * coulomb_offset) - (200 - math.fabs(motor_velocity))*((target_torque + np.sign(motor_velocity) * coulomb_offset) - 12)/200
+                else:
+                    ##control_torque = (target_torque + np.sign(motor_velocity) * coulomb_offset) - (200 - math.fabs(motor_velocity))*((target_torque + np.sign(motor_velocity) * coulomb_offset) - 12)/400
+
+                ##control_torque = (target_torque + np.sign(motor_velocity) * coulomb_offset)
+                    control_torque = 12
+
+
+                ##control_torque = target_torque
+#---------------------------------------------------------------------------------------
+
+                if motor_velocity > 0:
+                    control_torque = target_torque + coulomb_offset
+                elif motor_velocity < 0:
+                    control_torque = (target_torque + np.sign(motor_velocity) * coulomb_offset) - (200 - math.fabs(motor_velocity))*((target_torque + np.sign(motor_velocity) * coulomb_offset) - 12)/200
+                else:
+                    if np.mean(vel_rec) < -20:
+                        control_torque = target_torque + coulomb_offset
+                    else:
+                        control_torque = 12
 
 
 

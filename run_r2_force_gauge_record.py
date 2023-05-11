@@ -89,14 +89,33 @@ class raven2_froce_gauge_recorder():
         #print(str(round(stdv_force_posi, 6)))
         #print(str(round(stdv_force_neg, 6)))
 
+        # # draw plots
+        # plt.scatter(data_arr[:,3], data_arr[:,1], c='b')
+        # ax.axvline(x=0, color = 'g')
+        # ax.axhline(y=100 * np.mean(data_arr[:,2]), color = 'r')
+        # ax.set_ylim([-1,6])
+        # plt.xlabel('velocity')
+        # plt.ylabel('force')
+        # plt.title('negative mean: ' + str(round(mean_force_neg, 6)) + '    positive mean: ' + str(round(mean_force_posi, 6)) + '\n negative STDV: ' + str(round(stdv_force_neg, 6)) + '    positive STDV: ' + str(round(stdv_force_posi, 6)))
+        # #ax.text(0.5, -0.2, 'negative mean: ' + str(round(mean_force_neg, 6)) + '    positive mean: ' + str(round(mean_force_posi, 6)) + '\n negative STDV: ' + str(round(stdv_force_neg, 6)) + '    positive STDV: ' + str(round(stdv_force_posi, 6)), ha='center', va='center', transform=ax.transAxes)
+        # plt.savefig(self.record_plot_name)
+
         # draw plots
-        plt.scatter(data_arr[:,3], data_arr[:,1], c='b')
-        ax.axvline(x=0, color = 'g')
-        ax.axhline(y=100 * np.mean(data_arr[:,2]), color = 'r')
-        ax.set_ylim([-1,6])
-        plt.xlabel('velocity')
-        plt.ylabel('force')
-        plt.title('negative mean: ' + str(round(mean_force_neg, 6)) + '    positive mean: ' + str(round(mean_force_posi, 6)) + '\n negative STDV: ' + str(round(stdv_force_neg, 6)) + '    positive STDV: ' + str(round(stdv_force_posi, 6)))
+        fig, (ax1, ax2, ax3) = plt.subplots(3)
+        fig.suptitle('negative mean: ' + str(round(mean_force_neg, 6)) + '    positive mean: ' + str(round(mean_force_posi, 6)) + '\n negative STDV: ' + str(round(stdv_force_neg, 6)) + '    positive STDV: ' + str(round(stdv_force_posi, 6)))
+        ax1.scatter(data_arr[:,3], data_arr[:,1], c='b')
+        ax1.axvline(x=0, color = 'g')
+        ax1.axhline(y=100 * np.mean(data_arr[:,2]), color = 'r')
+        ax1.set_ylim([-1,6])
+        ax1.set(xlabel='velocity', ylabel='force')
+        ax2.plot(data_arr[:,0], data_arr[:,1])
+        ax2.set(xlabel='time', ylabel='force')
+        ax2.set_ylim([-1,6])
+
+        ax3.plot(data_arr[:,0], data_arr[:,3])
+        ax3.set(xlabel='time', ylabel='velocity')
+        fig.set_figheight(15)
+        
         #ax.text(0.5, -0.2, 'negative mean: ' + str(round(mean_force_neg, 6)) + '    positive mean: ' + str(round(mean_force_posi, 6)) + '\n negative STDV: ' + str(round(stdv_force_neg, 6)) + '    positive STDV: ' + str(round(stdv_force_posi, 6)), ha='center', va='center', transform=ax.transAxes)
         plt.savefig(self.record_plot_name)
 
