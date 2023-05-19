@@ -77,9 +77,6 @@ class raven2_crtk_torque_controller():
         self.load_cell_slope = np.array([0,0,0,0,0,0,0])  #[0] is not used, [1] for load cell on motor 1
         self.load_cell_dir = [-1, -1, -1, -1, -1, -1, -1]  #[0] is not used, [1] for load cell on motor 1 direction of the load cell, need to make sure for each motor, 'coming is the positive direction'
         self.load_cell_time_window = 8
-        self.load_cell_last_comp_time = [0,0,0,0,0,0,0]  # the last time that load cell compensation is applied, this is to lock the load cell compensation for a short time to prevent oscillation at 0 velocity, #[0] is not used, [1] for load cell on motor 1
-        self.load_cell_last_comp_slope = [0,0,0,0,0,0,0]  # the last slope that load cell compensation is applied
-        self.load_cell_lock = 0.3  # time in second that load cell compensation will be locked with the previous value after last compensation
 
         self.coulomb_factors =  [[[22,12],[25,13],[30,14],[35,15],[40,16],[45,17],[50,18]],  # 'motor 0', not used, this is to make idx [1] -> motor 1, not [0] -> motor 1
                                 [[22,12],[25,13],[30,14],[35,15],[40,16],[45,17],[50,18]],   # 'motor 1'
@@ -205,33 +202,26 @@ class raven2_crtk_torque_controller():
                 motor_velocity = self.ravenstate_cur.mvel[i + 8]
 
             if motor_velocity > 200: #forward drive
+                #control_torque = target_torque + target_torque * coulomb_factor
                 control_torque = target_torque + coulomb_offset
 
             elif motor_velocity < -200: #backdrive
+                #control_torque = target_torque - target_torque * coulomb_factor
                 control_torque = target_torque - coulomb_offset
 
             else: #static
+
                 if motor_velocity > 0:
                     control_torque = target_torque + coulomb_offset
                 elif motor_velocity < 0:
                     control_torque = (target_torque + np.sign(motor_velocity) * coulomb_offset) - (200 - math.fabs(motor_velocity))*((target_torque + np.sign(motor_velocity) * coulomb_offset) - 12)/200
                 else:
-                    if time.time() - self.load_cell_last_comp_time[i] >= self.load_cell_lock:
-                        if self.load_cell_slope[i] > 300:  # moving toward the motor
-                            control_torque = target_torque + coulomb_offset
-                        elif self.load_cell_slope[i] < -300:  # moving agains the motor
-                            control_torque = target_torque - coulomb_offset
-                        else:
-                            control_torque = target_torque + 0
-                        self.load_cell_last_comp_time[i] = time.time()
-                        self.load_cell_last_comp_slope[i] = self.load_cell_slope[i]
-                    else:   # if the last load cell compensation time is shorter than the threshold, lock and use the same slope
-                        if self.load_cell_last_comp_slope[i] > 300:  # moving toward the motor
-                            control_torque = target_torque + coulomb_offset
-                        elif self.load_cell_last_comp_slope[i] < -300:  # moving agains the motor
-                            control_torque = target_torque - coulomb_offset
-                        else:
-                            control_torque = target_torque + 0
+                    if self.load_cell_slope[i] > 300:  # moving toward the motor
+                        control_torque = target_torque + coulomb_offset
+                    elif self.load_cell_slope[i] < -300:  # moving agains the motor
+                        control_torque = target_torque - coulomb_offset
+                    else:
+                        control_torque = target_torque + 0
             if abs(control_torque) > self.max_torque[i]:
                 print('[ERROR] control torque too large, motor ' + str(i) + ', control torque: ' + str(control_torque))
                 print('Command not sent.')

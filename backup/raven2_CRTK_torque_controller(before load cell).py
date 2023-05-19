@@ -35,12 +35,11 @@ import sensor_msgs.msg
 import crtk_msgs.msg # crtk_msgs/operating_state
 #todo import the msgs.type of raven state
 from raven_2.msg import raven_state
-import math
 
 class raven2_crtk_torque_controller():
 
     # ros node is not initialized here, it should be initialized and named by the program that use this controller
-    def __init__(self, name_space, robot_name_1, robot_name_2, grasper_name, use_load_cell = False):
+    def __init__(self, name_space, robot_name_1, robot_name_2, grasper_name):
         self.name_space = name_space
         self.robot_name_1 = robot_name_1  # This is the real RAVEN arm
         self.robot_name_2 = robot_name_2  # This is the hacked arm to control torque
@@ -68,28 +67,8 @@ class raven2_crtk_torque_controller():
         self.measured_torque_2 = None # [RIGHT ARM] (15,) array of motor torque in ravenstate, derived from current command
 
         self.ravenstate_cur = None
-        self.first_ravenstate = False
 
         self.pub_count_motion = 0 # The counts or how many torque command messages are sent
-
-        self.use_load_cell = use_load_cell  # If ture, load cell need to be installed and it will be used to sense the direction RAVEN want to move when velocity is 0
-        self.load_cell_val = []
-        self.load_cell_slope = np.array([0,0,0,0,0,0,0])  #[0] is not used, [1] for load cell on motor 1
-        self.load_cell_dir = [-1, -1, -1, -1, -1, -1, -1]  #[0] is not used, [1] for load cell on motor 1 direction of the load cell, need to make sure for each motor, 'coming is the positive direction'
-        self.load_cell_time_window = 8
-        self.load_cell_last_comp_time = [0,0,0,0,0,0,0]  # the last time that load cell compensation is applied, this is to lock the load cell compensation for a short time to prevent oscillation at 0 velocity, #[0] is not used, [1] for load cell on motor 1
-        self.load_cell_last_comp_slope = [0,0,0,0,0,0,0]  # the last slope that load cell compensation is applied
-        self.load_cell_lock = 0.3  # time in second that load cell compensation will be locked with the previous value after last compensation
-
-        self.coulomb_factors =  [[[22,12],[25,13],[30,14],[35,15],[40,16],[45,17],[50,18]],  # 'motor 0', not used, this is to make idx [1] -> motor 1, not [0] -> motor 1
-                                [[22,12],[25,13],[30,14],[35,15],[40,16],[45,17],[50,18]],   # 'motor 1'
-                                [[22,12],[25,13],[30,14],[35,14],[40,15],[45,16],[50,17]],   # 'motor 1'
-                                [[22,12],[25,13],[30,14],[35,15],[40,15],[45,16],[50,17]],   # 'motor 2'
-                                [[22,12],[25,13],[30,13],[35,14],[40,15],[45,16],[50,16]],   # 'motor 3'
-                                [[22,12],[25,13],[30,14],[35,15],[40,16],[45,17],[50,18]],   # 'motor 4'
-                                [[22,12],[25,13],[30,13],[35,14],[40,15],[45,16],[50,17]]]   # 'motor 5'
-
-
 
         self.__init_pub_sub()
 
@@ -112,9 +91,6 @@ class raven2_crtk_torque_controller():
         topic = "ravenstate" # [IMPT] This is actually listening to left arm, because the RAVEN I use has a mismatch that the arm1's jpos is published on arm2
         self.__subscriber_ravenstate = rospy.Subscriber(topic, raven_state, self.__callback_ravenstate)
 
-        if self.use_load_cell == True:
-            self.subscriber_measured_js = rospy.Subscriber('/load_cells', sensor_msgs.msg.JointState, self.__callback_load_cell)
-
 
         # torque publishers
 
@@ -131,21 +107,8 @@ class raven2_crtk_torque_controller():
 
     def __callback_ravenstate(self, msg):
         self.ravenstate_cur = msg
-        if not self.first_ravenstate:
-            self.first_ravenstate = True
         return None
 
-    def __callback_load_cell(self, msg):
-        load_cell_cur = np.zeros(7)
-        load_cell_cur[1:] = np.array(msg.position)
-        self.load_cell_val.append(load_cell_cur)
-        self.load_cell_val = self.load_cell_val[-self.load_cell_time_window:]
-        load_cell_arr = np.array(self.load_cell_val)
-        if load_cell_arr.shape[0] == self.load_cell_time_window:
-            for i in range(1,7):    
-                self.load_cell_slope[i] = average_slope(load_cell_arr[:, i]) * self.load_cell_dir[i]
-        #print(self.load_cell_slope[0]) 
-        return None
 
     # [IMPT]: the joint_command is an np.array of dimension 16, please notice that the first entry is always 0 and does nothing, 
     #         this is to make the command consistent and intuitive - command[1] is joint 1 and [2] is joint 2, so on and so forth.
@@ -180,66 +143,7 @@ class raven2_crtk_torque_controller():
         self.pub_count_motion += 1
 
         #print('Command pub count: ' + str(self.pub_count_motion) + ' | msg: ' + str(joint_command)) # [debug]
-        return 0
 
-
-    # [Input ]: (7,) array, which is the target torque of the 6 motors, [0] will not be used, [1] for motor 1, [2] for motor 2, so on and so forth
-    # [Return]: -1 if command not published, 0 if command published normally
-    def pub_torque_command_with_comp(self, torque_command):
-        if self.first_ravenstate == False:
-            print('No ravenstate yet, command not sent.')
-            return -1
-
-        cmd_comp = np.zeros((16))
-
-        for i in range(1,7):   # 1 for motor 1, 6 for motor 6
-            target_torque = torque_command[i]
-            if target_torque == 0:
-                cmd_comp[i] = 0
-                continue
-            coulomb_offset_list = np.array(self.coulomb_factors[i])
-            coulomb_offset = coulomb_offset_list[np.absolute(coulomb_offset_list[:,0]-target_torque).argmin(),1] # this is to find the closest factor
-            if i < 3:
-                motor_velocity = self.ravenstate_cur.mvel[i + 7]
-            else:
-                motor_velocity = self.ravenstate_cur.mvel[i + 8]
-
-            if motor_velocity > 200: #forward drive
-                control_torque = target_torque + coulomb_offset
-
-            elif motor_velocity < -200: #backdrive
-                control_torque = target_torque - coulomb_offset
-
-            else: #static
-                if motor_velocity > 0:
-                    control_torque = target_torque + coulomb_offset
-                elif motor_velocity < 0:
-                    control_torque = (target_torque + np.sign(motor_velocity) * coulomb_offset) - (200 - math.fabs(motor_velocity))*((target_torque + np.sign(motor_velocity) * coulomb_offset) - 12)/200
-                else:
-                    if time.time() - self.load_cell_last_comp_time[i] >= self.load_cell_lock:
-                        if self.load_cell_slope[i] > 300:  # moving toward the motor
-                            control_torque = target_torque + coulomb_offset
-                        elif self.load_cell_slope[i] < -300:  # moving agains the motor
-                            control_torque = target_torque - coulomb_offset
-                        else:
-                            control_torque = target_torque + 0
-                        self.load_cell_last_comp_time[i] = time.time()
-                        self.load_cell_last_comp_slope[i] = self.load_cell_slope[i]
-                    else:   # if the last load cell compensation time is shorter than the threshold, lock and use the same slope
-                        if self.load_cell_last_comp_slope[i] > 300:  # moving toward the motor
-                            control_torque = target_torque + coulomb_offset
-                        elif self.load_cell_last_comp_slope[i] < -300:  # moving agains the motor
-                            control_torque = target_torque - coulomb_offset
-                        else:
-                            control_torque = target_torque + 0
-            if abs(control_torque) > self.max_torque[i]:
-                print('[ERROR] control torque too large, motor ' + str(i) + ', control torque: ' + str(control_torque))
-                print('Command not sent.')
-                return -1
-            cmd_comp[i] =  control_torque
-
-        self.pub_torque_command(cmd_comp.astype(int))
-        print(cmd_comp.astype(int))
         return 0
 
     def __check_max_torque_command(self, torque_command):
@@ -247,11 +151,3 @@ class raven2_crtk_torque_controller():
         idx = np.array(np.where(diff<0))
 
         return idx[0]+1
-
-def average_slope(numbers):
-    slopes = []
-    for i in range(len(numbers) - 1):
-        slope = (numbers[i+1] - numbers[i])
-        slopes.append(slope)
-    avg_slope = sum(slopes) / len(slopes)
-    return avg_slope

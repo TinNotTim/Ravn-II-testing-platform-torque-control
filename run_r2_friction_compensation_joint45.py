@@ -42,15 +42,15 @@ import math
 # else:
 #     raven_state_index = offset + joint + 1
  
-target_torques = np.array([0, 0, 0, 0, 50.0, 50.0, 0, 0])  #assume these parameters are assignend by other higher controller 
+target_torques = np.array([0, 0, 0, 0, 30.0, 30.0, 0, 0])  #assume these parameters are assignend by other higher controller 
 #control_torques = copy.deepcopy(target_torques)
 control_torques = np.zeros(8)
 max_torque = 80.0 
 
 #these flags indicate the on/off of the compensation
-compensation_master = 1
+compensation_master = 0
 coulomb_compensation = 1
-viscous_compensation = 1
+viscous_compensation = 0
 
 #define compensation factor
 # coulomb_factor = 0.5
