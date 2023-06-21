@@ -26,31 +26,22 @@ The code reads in raven state, and compensates coulomb and viscous friction base
 
 import sys
 import time
-import utils_r2_torque_keyboard_controller as utils
 import rospy
 import numpy as np
-import raven2_CRTK_torque_controller
+import raven2_CRTK_force_actuator_controller
 import copy
 
- 
-target_torques = np.zeros(7)  #assume these parameters are assignend by other higher controller 
-target_torques[4] = 40
-target_torques[5] = 40
-
-
-
-rospy.init_node('force_unit_joint45', anonymous=True)
-rospy.loginfo("Node is created")
+rospy.init_node('force_controller', anonymous=True)
 
 #set the rate to 100 Hz
 r = rospy.Rate(100)
 
-r2_tor_ctl = raven2_CRTK_torque_controller.raven2_crtk_torque_controller(name_space = ' ', robot_name_1 = 'arm1', robot_name_2 = 'arm2', grasper_name = 'grasp1', use_load_cell = True)
+r2_force_ctl = raven2_CRTK_force_actuator_controller.raven2_crtk_force_controller()
 
 
 
 while not rospy.is_shutdown():
-    r2_tor_ctl.pub_torque_command_with_comp(target_torques)
+    r2_force_ctl.pub_force_cmd()  # no force is given here, the node will listen to topic 'force_cmd' for force commands
     r.sleep()
 
         
