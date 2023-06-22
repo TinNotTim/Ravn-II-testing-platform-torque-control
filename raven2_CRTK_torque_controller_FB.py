@@ -75,7 +75,19 @@ class raven2_crtk_torque_controller():
         self.pub_count_motion = 0 # The counts or how many torque command messages are sent
         
         self.tau_cmd_cur = np.zeros(16)
+
+        #------------------------------
+        #parameters for PID controller
         self.force_pid_p = 1.0  # p factor of force PID feedback control using load cell
+        self.force_pid_i = 0.0
+        self.force_pid_d = 0.0
+        # Anti windup        
+        self.windupMax = 0
+        # default value
+        self.e_old = np.zeros(16)
+		self.e_sum = np.zeros(16)
+		self.e_cur = np.zeros(16)
+        #------------------------------#
         
         self.load_cell_force = None  # (7,) array, [0] will not be used, [1] for motor 1, [2] for motor 2, so on and so forth
         self.load_cell_first_call = False
@@ -244,8 +256,25 @@ class raven2_crtk_torque_controller():
             return -1
         cmd_comp = np.zeros((16))
         for i in range(1,7):
-            cmd_comp[i] = self.tau_cmd_cur[i] + self.force_pid_p * (force_command[i] - self.load_cell_force[i])
+            # #torque controller with only P control
+            # cmd_comp[i] = self.tau_cmd_cur[i] + self.force_pid_p * (force_command[i] - self.load_cell_force[i])
+
+            #anti windup mechanism
+            if self.windupMax != 0:
+                if self.e_sum[i] > self.windupMax:
+                    self.e_sum[i] = self.windupMax
+                elif self.e_sum[i] < -self.windupMax:
+                    self.e_sum[i] = -self.windupMax
             
+            #update the error
+            self.e_sum[i] = self.e_sum[i] + self.e_cur[i]
+            self.e_old[i] = self.e_cur[i]
+            self.e_cur[i] = force_command[i] - self.load_cell_force[i]
+
+            #torque controller with PID control
+            cmd_comp[i] = self.tau_cmd_cur[i] + self.force_pid_p * self.e_cur[i] + self.force_pid_d * (self.e_cur[i] - self.e_old[i]) + self.force_pid_i * (self.e_old[i] + self.e_cur[i])
+
+
             if abs(cmd_comp[i]) > self.max_torque[i]:
                 print('[ERROR] control torque too large, motor ' + str(i) + ', control torque: ' + str(cmd_comp[i]))
                 print('Zero command is sent to all motor.')
