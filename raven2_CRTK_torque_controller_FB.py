@@ -78,15 +78,15 @@ class raven2_crtk_torque_controller():
 
         #------------------------------
         #parameters for PID controller
-        self.force_pid_p = 1.0  # p factor of force PID feedback control using load cell
+        self.force_pid_p = 2.0  # p factor of force PID feedback control using load cell
         self.force_pid_i = 0.0
         self.force_pid_d = 0.0
         # Anti windup        
         self.windupMax = 0
         # default value
         self.e_old = np.zeros(16)
-		self.e_sum = np.zeros(16)
-		self.e_cur = np.zeros(16)
+	self.e_sum = np.zeros(16)
+        self.e_cur = np.zeros(16)
         #------------------------------#
         
         self.load_cell_force = None  # (7,) array, [0] will not be used, [1] for motor 1, [2] for motor 2, so on and so forth
@@ -267,7 +267,7 @@ class raven2_crtk_torque_controller():
                     self.e_sum[i] = -self.windupMax
             
             #update the error
-            self.e_sum[i] = self.e_sum[i] + self.e_cur[i]
+            self.e_sum[i] = self.e_sum[i] + self.e_old[i]
             self.e_old[i] = self.e_cur[i]
             self.e_cur[i] = force_command[i] - self.load_cell_force[i]
 
