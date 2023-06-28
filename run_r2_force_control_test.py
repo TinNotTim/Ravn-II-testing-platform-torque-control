@@ -34,8 +34,8 @@ import copy
 
  
 target_torques = np.zeros(7)  #assume these parameters are assignend by other higher controller 
-target_torques[4] = 3
-target_torques[5] = 3
+target_torques[4] = 0
+target_torques[5] = 2
 
 
 

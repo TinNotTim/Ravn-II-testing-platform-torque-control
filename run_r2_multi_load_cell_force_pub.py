@@ -16,7 +16,8 @@ a_1 = 2.163318232246724780e-05
 a_2 = 2.163318232246724780e-05
 a_3 = 2.163318232246724780e-05
 a_4 = 2.587814952673832719e-05
-a_5 = 2.163318232246724780e-05
+#a_5 = 2.163318232246724780e-05
+a_5 = 6.96586894668381e-06
 a_6 = 2.163318232246724780e-05
 
 
@@ -76,7 +77,7 @@ while not rospy.is_shutdown():
     force_cur[0] = 0
     force_cur[1] = 0
     force_cur[2] = 0
-    #force_cur[3] = 0
+    force_cur[3] = 0
     force_cur[5] = 0
     # for only one motor test -------------------
 
@@ -86,6 +87,7 @@ while not rospy.is_shutdown():
     msg.header.stamp = rospy.Time.now()
     msg.position[:] = force_filtered.flat
     lcf_pub.publish(msg)
-    force_pre = force_cur
+    #force_pre = force_cur
+    force_pre = force_filtered
 
 
