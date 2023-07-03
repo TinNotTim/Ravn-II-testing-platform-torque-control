@@ -20,8 +20,7 @@ author Haonan Peng, Dun-Tin Chiang, Yun-Hsuan Su, Andrew Lewis,
 """
 
 """
-This piece of code is for testing the single force unit. 
-The code reads in raven state, and compensates coulomb and viscous friction based on motor velocity 
+This piece of code is creating a node for torque controller
 """
 
 import sys
@@ -31,12 +30,6 @@ import rospy
 import numpy as np
 import raven2_CRTK_torque_controller
 import copy
-
- 
-target_torques = np.zeros(7)  #assume these parameters are assignend by other higher controller 
-target_torques[4] = 40
-target_torques[5] = 40
-
 
 
 rospy.init_node('force_unit_joint45', anonymous=True)
@@ -50,7 +43,7 @@ r2_tor_ctl = raven2_CRTK_torque_controller.raven2_crtk_torque_controller(name_sp
 
 
 while not rospy.is_shutdown():
-    r2_tor_ctl.pub_torque_command_with_comp(target_torques)
+    r2_tor_ctl.pub_tau_cmd_with_FB() # no force is given here, the node will listen to topic 'torque_cmd' for torque commands
     r.sleep()
 
         

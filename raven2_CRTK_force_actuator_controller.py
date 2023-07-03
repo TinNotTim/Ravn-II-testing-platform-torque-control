@@ -101,6 +101,9 @@ class raven2_crtk_force_controller():
         # msg.position - (6,) x,y,z force and x, y, z torque (if applicable)
         # msg.velocity - (7,) desired torque command on motor 1-6, [0] is not used, [1] is motor 1
         self.__publisher_force_applied = rospy.Publisher('force_applied', sensor_msgs.msg.JointState, latch = True, queue_size = 1)
+        #TODO: create a publisher that publish the torque command
+        self.__publisher_torque_cmd = rospy.Publisher('torque_cmd', sensor_msgs.msg.JointState, latch = True, queue_size = 1)
+        #TODO end
         self.__subscriber_force_cmd = rospy.Subscriber('force_cmd', sensor_msgs.msg.JointState, self.__callback_force_cmd)
 
         return None
@@ -149,7 +152,13 @@ class raven2_crtk_force_controller():
                 self.tor_cmd[4] = int(-10* self.force_d_static[1] + 22)
             #print(self.tor_cmd)
 
-        self.r2_tor_ctl.pub_torque_command_with_comp(self.tor_cmd)
+        #TODO:publish the list of torque command to /torque_cmd topic
+        #self.r2_tor_ctl.pub_torque_command_with_comp(self.tor_cmd) #original
+        tor_cmd_msg = sensor_msgs.msg.JointState()
+        tor_cmd_msg.effort = self.tor_cmd
+        self.__publisher_torque_cmd(tor_cmd_msg)
+        #TODO end
+        
         tor_vec = np.ones((6,1))
         tor_vec[:,0] =  self.tor_cmd[1:].T / 10
         force_applied = np.sum(self.motor_dir[1:] * tor_vec, axis = 0)

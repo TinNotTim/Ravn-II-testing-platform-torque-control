@@ -69,6 +69,11 @@ class raven2_crtk_torque_controller():
         self.measured_mpos_2 = None # [RIGHT ARM] (15,) array of measured motor pose
         self.measured_torque_2 = None # [RIGHT ARM] (15,) array of motor torque in ravenstate, derived from current command
 
+        #TODO:create the parameter for torque command and its callback function
+        self.torque_cmd = None
+        self.torque_cmd_first_call = False
+        #TODO end
+        
         self.ravenstate_cur = None
         self.first_ravenstate = False
 
@@ -85,11 +90,11 @@ class raven2_crtk_torque_controller():
         self.windupMax = 0
         # default value
         self.e_old = np.zeros(16)
-	self.e_sum = np.zeros(16)
+        self.e_sum = np.zeros(16)
         self.e_cur = np.zeros(16)
         self.t_cur = time.time()
-	self.t_old = time.time()
-        #------------------------------#
+        self.t_old = time.time()
+        #------------------------------
         
         self.load_cell_force = None  # (7,) array, [0] will not be used, [1] for motor 1, [2] for motor 2, so on and so forth
         self.load_cell_first_call = False
@@ -118,8 +123,12 @@ class raven2_crtk_torque_controller():
         self.subscriber_load_cell_force = rospy.Subscriber('/load_cell_forces', sensor_msgs.msg.JointState, self.__callback_load_cell_force)
 
 
-        # torque publishers
+        #TODO: create a subscriber that receive message from /torque_cmd
+        topic = "torque_cmd"
+        self.__subscriber_torque_cmd = rospy.Subscriber(topic, sensor_msgs.msg.JointState, self.__callback_torque_cmd)
+        #TODO end
 
+        # torque publishers
         topic = "/" + self.robot_name_2 + "/servo_jp"
         self.__publisher_servo_jp = rospy.Publisher(topic, sensor_msgs.msg.JointState, latch = True, queue_size = 1)
 
@@ -145,6 +154,17 @@ class raven2_crtk_torque_controller():
             self.load_cell_force[1:] = msg.position[:]
 
         return None
+
+    #TODO: create a callback function for torque_cmd subscriber
+    def __callback_torque_cmd(self, msg):
+        if not self.torque_cmd_first_call:
+            self.torque_cmd_first_call = True
+            self.torque_cmd = np.zeros(7)
+        else:
+            self.torque_cmd = msg.effort
+
+
+    #TODO end
 
     # [IMPT]: the joint_command is an np.array of dimension 16, please notice that the first entry is always 0 and does nothing, 
     #         this is to make the command consistent and intuitive - command[1] is joint 1 and [2] is joint 2, so on and so forth.
@@ -252,10 +272,12 @@ class raven2_crtk_torque_controller():
     
     # [Input ]: (7,) array, which is the target **force** of the 6 motors, [0] will not be used, [1] for motor 1, [2] for motor 2, so on and so forth
     # [Return]: -1 if command not published, 0 if command published normally
-    def pub_tau_cmd_with_FB(self, force_command):
-        if self.first_ravenstate == False or self.load_cell_first_call == False:
-            print('No ravenstate or load cell force yet, command not sent.')
+    def pub_tau_cmd_with_FB(self):
+        if self.first_ravenstate == False or self.load_cell_first_call == False or self.torque_cmd_first_call == False:
+            print('No ravenstate or load cell force or torque command yet, command not sent.')
             return -1
+        
+        force_command = self.torque_cmd
         cmd_comp = np.zeros((16))
         for i in range(1,7):
             # #torque controller with only P control

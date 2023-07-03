@@ -1,0 +1,15 @@
+<launch>
+    <!-- Frist node-->
+    <!-- TODO: specify the file path of multi load cell force pub-->
+    <node pkg="python_executable" type="python" arg="">
+
+    <!-- Second node-->
+    <!-- TODO: specify the file path of force control-->
+    <node pkg="python_executable" type="python" arg="">
+
+    <!-- Third node-->
+    <!-- TODO: specify the file path of torque control-->
+    <node pkg="python_executable" type="python" arg="">
+
+
+</launch>
