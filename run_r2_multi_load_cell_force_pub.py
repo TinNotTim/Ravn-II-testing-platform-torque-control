@@ -77,7 +77,7 @@ while not rospy.is_shutdown():
     force_cur[0] = 0
     force_cur[1] = 0
     force_cur[2] = 0
-    force_cur[3] = 0
+    #force_cur[3] = 0
     force_cur[5] = 0
     # for only one motor test -------------------
 

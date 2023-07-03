@@ -78,15 +78,17 @@ class raven2_crtk_torque_controller():
 
         #------------------------------
         #parameters for PID controller
-        self.force_pid_p = 1.0  # p factor of force PID feedback control using load cell
-        self.force_pid_i = 0.0
-        self.force_pid_d = 0.0
+        self.force_pid_p = 6.0  # p factor of force PID feedback control using load cell
+        self.force_pid_i = 1.0
+        self.force_pid_d = 0.0 #0.075
         # Anti windup        
         self.windupMax = 0
         # default value
         self.e_old = np.zeros(16)
 	self.e_sum = np.zeros(16)
         self.e_cur = np.zeros(16)
+        self.t_cur = time.time()
+	self.t_old = time.time()
         #------------------------------#
         
         self.load_cell_force = None  # (7,) array, [0] will not be used, [1] for motor 1, [2] for motor 2, so on and so forth
@@ -270,9 +272,16 @@ class raven2_crtk_torque_controller():
             self.e_sum[i] = self.e_sum[i] + self.e_old[i]
             self.e_old[i] = self.e_cur[i]
             self.e_cur[i] = force_command[i] - self.load_cell_force[i]
+            #calculate dt
+            self.t_cur = time.time()
+            dt = self.t_cur - self.t_old
 
             #torque controller with PID control
-            cmd_comp[i] = self.tau_cmd_cur[i] + self.force_pid_p * self.e_cur[i] + self.force_pid_d * (self.e_cur[i] - self.e_old[i]) + self.force_pid_i * (self.e_old[i] + self.e_cur[i])
+            #cmd_comp[i] = self.tau_cmd_cur[i] + self.force_pid_p * self.e_cur[i] + self.force_pid_d * (self.e_cur[i] - self.e_old[i]) + self.force_pid_i * (self.e_old[i] + self.e_cur[i])
+            cmd_comp[i] = force_command[i]*10 + self.force_pid_p * self.e_cur[i] + self.force_pid_d * (self.e_cur[i] - self.e_old[i])/dt + self.force_pid_i * (self.e_sum[i] + self.e_cur[i])
+
+            #if i == 5:
+                #print("D term: ", (self.e_cur[i] - self.e_old[i])/dt)
 
 
             if abs(cmd_comp[i]) > self.max_torque[i]:
@@ -282,8 +291,10 @@ class raven2_crtk_torque_controller():
                 return -1  
         cmd_comp = cmd_comp.clip(-8.0, 80.0)
         self.tau_cmd_cur = cmd_comp[:]
+        self.t_old = self.t_cur
         self.pub_torque_command(cmd_comp.astype(int))
         print(cmd_comp.astype(int))
+        #print("e_sum = ",self.e_sum)
         return 0
 
     def __check_max_torque_command(self, torque_command):
