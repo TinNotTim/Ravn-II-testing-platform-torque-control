@@ -28,7 +28,7 @@ import time
 import utils_r2_torque_keyboard_controller as utils
 import rospy
 import numpy as np
-import raven2_CRTK_torque_controller
+import raven2_CRTK_torque_controller_FB
 import copy
 
 
@@ -38,7 +38,7 @@ rospy.loginfo("Node is created")
 #set the rate to 100 Hz
 r = rospy.Rate(100)
 
-r2_tor_ctl = raven2_CRTK_torque_controller.raven2_crtk_torque_controller(name_space = ' ', robot_name_1 = 'arm1', robot_name_2 = 'arm2', grasper_name = 'grasp1', use_load_cell = True)
+r2_tor_ctl = raven2_CRTK_torque_controller_FB.raven2_crtk_torque_controller(name_space = ' ', robot_name_1 = 'arm1', robot_name_2 = 'arm2', grasper_name = 'grasp1', use_load_cell = True)
 
 
 
