@@ -156,7 +156,7 @@ class raven2_crtk_force_controller():
         #self.r2_tor_ctl.pub_torque_command_with_comp(self.tor_cmd) #original
         tor_cmd_msg = sensor_msgs.msg.JointState()
         tor_cmd_msg.effort = self.tor_cmd
-        self.__publisher_torque_cmd(tor_cmd_msg)
+        self.__publisher_torque_cmd.publish(tor_cmd_msg)
         #TODO end
         
         tor_vec = np.ones((6,1))

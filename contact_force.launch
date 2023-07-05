@@ -1,0 +1,13 @@
+<launch>
+    <!-- Frist node-->
+    <!-- TODO: specify the file path of multi load cell force pub-->
+    <node name="load_cell_force_pub" pkg="rospy" type="/home/supernova/raven2_CRTK_Python_controller/torque_controller/run_r2_multi_load_cell_force_pub.py"></node>
+
+    <!-- Second node-->
+    <!-- TODO: specify the file path of force control-->
+    <node name= "force_control" pkg="rospy" type="/home/supernova/raven2_CRTK_Python_controller/torque_controller/run_r2_force_control.py"></node>
+
+    <!-- Third node-->
+    <!-- TODO: specify the file path of torque control-->
+    <node name= "torque_control" pkg="rospy" type="/home/supernova/raven2_CRTK_Python_controller/torque_controller/run_r2_torque_control.py"></node>
+</launch>

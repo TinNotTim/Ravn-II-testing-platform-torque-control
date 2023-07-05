@@ -71,6 +71,7 @@ class raven2_crtk_torque_controller():
 
         #TODO:create the parameter for torque command and its callback function
         self.torque_cmd = None
+        self.load_cell_force_desired = None
         self.torque_cmd_first_call = False
         #TODO end
         
@@ -160,8 +161,13 @@ class raven2_crtk_torque_controller():
         if not self.torque_cmd_first_call:
             self.torque_cmd_first_call = True
             self.torque_cmd = np.zeros(7)
+            self.load_cell_force_desired = np.zeros(7)
         else:
-            self.torque_cmd = msg.effort
+            #for testing purpose
+            #msg.effort = [0.0, 0.0, 0.0, 0.0, 30, 30, 0.0] #commont out if not need
+
+            self.torque_cmd = msg.effort #unit: N/mm
+            self.load_cell_force_desired = np.array(msg.effort) / 10.0 # unit: N, the radius of spool is 1cm
 
 
     #TODO end
@@ -277,7 +283,7 @@ class raven2_crtk_torque_controller():
             print('No ravenstate or load cell force or torque command yet, command not sent.')
             return -1
         
-        force_command = self.torque_cmd
+        force_command = self.load_cell_force_desired
         cmd_comp = np.zeros((16))
         for i in range(1,7):
             # #torque controller with only P control
@@ -300,7 +306,7 @@ class raven2_crtk_torque_controller():
 
             #torque controller with PID control
             #cmd_comp[i] = self.tau_cmd_cur[i] + self.force_pid_p * self.e_cur[i] + self.force_pid_d * (self.e_cur[i] - self.e_old[i]) + self.force_pid_i * (self.e_old[i] + self.e_cur[i])
-            cmd_comp[i] = force_command[i]*10 + self.force_pid_p * self.e_cur[i] + self.force_pid_d * (self.e_cur[i] - self.e_old[i])/dt + self.force_pid_i * (self.e_sum[i] + self.e_cur[i])
+            cmd_comp[i] = self.torque_cmd[i] + self.force_pid_p * self.e_cur[i] + self.force_pid_d * (self.e_cur[i] - self.e_old[i])/dt + self.force_pid_i * (self.e_sum[i] + self.e_cur[i])
 
             #if i == 5:
                 #print("D term: ", (self.e_cur[i] - self.e_old[i])/dt)
