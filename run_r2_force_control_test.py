@@ -20,8 +20,8 @@ author Haonan Peng, Dun-Tin Chiang, Yun-Hsuan Su, Andrew Lewis,
 """
 
 """
-This piece of code is for testing the single force unit. 
-The code reads in raven state, and compensates coulomb and viscous friction based on motor velocity 
+This piece of code is for testing the single/multiple force unit. 
+Specify the desired torque command in target_torques array 
 """
 
 import sys
@@ -40,10 +40,11 @@ def force_test():
 
 
     target_torques = np.zeros(7)  #assume these parameters are assignend by other higher controller 
-    target_torques[4] = 30.0
+    #the index here start's from 1-7
+    target_torques[4] = 30.0 
     target_torques[5] = 30.0
 
-
+    #create message for publishing
     tor_cmd_msg = sensor_msgs.msg.JointState()
     tor_cmd_msg.effort = target_torques
     #set the rate to 100 Hz
