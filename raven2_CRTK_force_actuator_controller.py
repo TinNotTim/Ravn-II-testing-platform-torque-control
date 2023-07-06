@@ -155,7 +155,7 @@ class raven2_crtk_force_controller():
         #TODO:publish the list of torque command to /torque_cmd topic
         #self.r2_tor_ctl.pub_torque_command_with_comp(self.tor_cmd) #original
         tor_cmd_msg = sensor_msgs.msg.JointState()
-        tor_cmd_msg.effort = self.tor_cmd
+        tor_cmd_msg.position = self.tor_cmd
         self.__publisher_torque_cmd.publish(tor_cmd_msg)
         #TODO end
         

@@ -28,7 +28,7 @@ import time
 import rospy
 import sensor_msgs.msg
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 from raven2_CRTK_torque_controller_FB import raven2_crtk_torque_controller
 
 class torque_transient_response_tester():
@@ -49,10 +49,11 @@ class torque_transient_response_tester():
         self.load_cell_start_record = False #to indicate the start of recording
 
         #create a torque controller object, just for getting the PID gain
-        self.torque_controller = raven2_crtk_torque_controller()
+        self.torque_controller = raven2_crtk_torque_controller(name_space = ' ', robot_name_1 = 'arm1', robot_name_2 = 'arm2', grasper_name = 'grasp1', use_load_cell = True)
         self.pid_p = self.torque_controller.force_pid_p
         self.pid_i = self.torque_controller.force_pid_i
         self.pid_d = self.torque_controller.force_pid_d
+        print("For debug - self.pid_p = ", self.pid_p)
         del self.torque_controller
 
         #create publisher for torque command
@@ -63,7 +64,7 @@ class torque_transient_response_tester():
 
 
     def __callback_load_cell_force(self, msg):
-        self.load_cell_force = msg.position[self.testing_unit_index]
+        self.load_cell_force = msg.position[self.testing_unit_index-1]
 
         if self.load_cell_start_record:
             #record the force reading and time 
@@ -90,7 +91,7 @@ class torque_transient_response_tester():
 
     def step_response(self):
         #pretension the string
-        self.pretension_force()
+        self.pretension()
 
         #start recording
         rospy.loginfo("Start recording load cell reading")
@@ -112,6 +113,8 @@ class torque_transient_response_tester():
         #stop recording 
         rospy.loginfo("Stop recording load cell reading")
         self.load_cell_start_record = False
+	#print("For debug - load_cell_forces = ", self.load_cell_forces, len(self.load_cell_forces))
+        #	print("For debug - load_cell_force_times = ", self.load_cell_force_times, len(self.load_cell_force_times))
 
         #plot the load cell force
         self.plotter("step_response")
@@ -126,16 +129,20 @@ class torque_transient_response_tester():
         #ax.grid()
         #display the initial force and desired force
         plt.axhline(y=self.pretension_force, color='b', linestyle='-')
-        plt.axhline(y=self.step_response_force, color='b', linestyle='-')
+        plt.axhline(y=self.step_response_force, color='r', linestyle='-')
 
         #display the pid parameter
-        ax.text(0.85, 0.95, f'Kp: {self.pid_p}, Ki: {self.pid_i}, Kd: {self.pid_d}, Force Unit:{self.testing_unit_index}', transform=ax.transAxes,
-        fontsize=10, verticalalignment='top', bbox=dict(facecolor='white', edgecolor='black', boxstyle='round'))
+        #ax.text(0.85, 0.95, f'Kp: {self.pid_p}, Ki: {self.pid_i}, Kd: {self.pid_d}, Force Unit: {self.testing_unit_index}', transform=ax.transAxes, fontsize=10, verticalalignment='top', bbox=dict(facecolor='white', edgecolor='black', boxstyle='round'))
+        #ax.text(0.85, 0.95, f'Kp: {self.pid_p}, Ki: {self.pid_i}, Kd: {self.pid_d}, Force Unit: {self.testing_unit_index}')
 
-        save_dir = ''
+        save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_test_fig/'
         fig.savefig(save_dir + plot_name + ".png")
         plt.show()
 
 if __name__ == '__main__':
-       tester = torque_transient_response_tester()
-       tester.step_response() 
+        rospy.init_node('transient_response_tester', anonymous=True)
+        rospy.loginfo("Node is created")
+
+        tester = torque_transient_response_tester()
+        #tester.plotter()
+        tester.step_response() 

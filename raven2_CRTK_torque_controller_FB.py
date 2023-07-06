@@ -84,8 +84,8 @@ class raven2_crtk_torque_controller():
 
         #------------------------------
         #parameters for PID controller
-        self.force_pid_p = 6.0  # p factor of force PID feedback control using load cell
-        self.force_pid_i = 1.0
+        self.force_pid_p = 0.0#6.0  # p factor of force PID feedback control using load cell
+        self.force_pid_i = 0.0#1.0
         self.force_pid_d = 0.0 #0.075
         # Anti windup        
         self.windupMax = 0
@@ -160,14 +160,10 @@ class raven2_crtk_torque_controller():
     def __callback_torque_cmd(self, msg):
         if not self.torque_cmd_first_call:
             self.torque_cmd_first_call = True
-            self.torque_cmd = np.zeros(7)
-            self.load_cell_force_desired = np.zeros(7)
-        else:
-            #for testing purpose
-            #msg.effort = [0.0, 0.0, 0.0, 0.0, 30, 30, 0.0] #commont out if not need
-
-            self.torque_cmd = msg.effort #unit: N/mm
-            self.load_cell_force_desired = np.array(msg.effort) / 10.0 # unit: N, the radius of spool is 1cm
+        #self.torque_cmd = np.zeros(7)
+        #self.load_cell_force_desired = np.zeros(7)
+        self.torque_cmd = msg.position #unit: N/mm
+        self.load_cell_force_desired = np.array(msg.position) / 10.0 # unit: N, the radius of spool is 1cm
 
 
     #TODO end

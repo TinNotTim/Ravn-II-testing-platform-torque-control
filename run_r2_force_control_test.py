@@ -46,13 +46,14 @@ def force_test():
 
     #create message for publishing
     tor_cmd_msg = sensor_msgs.msg.JointState()
-    tor_cmd_msg.effort = target_torques
+    tor_cmd_msg.position = target_torques
+    pub.publish(tor_cmd_msg)
     #set the rate to 100 Hz
     r = rospy.Rate(100)
 
-    while not rospy.is_shutdown():
-        pub.publish(tor_cmd_msg)
-        r.sleep()
+    #while not rospy.is_shutdown():
+        #pub.publish(tor_cmd_msg)
+        #r.sleep()
 
 
 
