@@ -84,9 +84,9 @@ class raven2_crtk_torque_controller():
 
         #------------------------------
         #parameters for PID controller
-        self.force_pid_p = 0.0#6.0  # p factor of force PID feedback control using load cell
-        self.force_pid_i = 0.0#1.0
-        self.force_pid_d = 0.0 #0.075
+        self.force_pid_p = 0.8# p factor of force PID feedback control using load cell
+        self.force_pid_i = 0.8#1.0
+        self.force_pid_d = 0.5 #0.075
         # Anti windup        
         self.windupMax = 0
         # default value

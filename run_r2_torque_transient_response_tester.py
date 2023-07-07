@@ -40,9 +40,9 @@ class torque_transient_response_tester():
         self.pretension_force = 1 #unit: N
         self.step_response_force = 3 #unit: N
         self.wait_for_steady_state = False
-        self.window_size = 10 # the number of readings to take for mean calculation
+        self.window_size = 30 # the number of readings to take for mean calculation
         self.window_reading_mean = 0
-        self.steady_state_threshold = 0.02 
+        self.steady_state_threshold = 0.01 
 
         #variable for load cell reading
         self.load_cell_force = 0 #unit N
@@ -57,7 +57,7 @@ class torque_transient_response_tester():
         self.pid_p = self.torque_controller.force_pid_p
         self.pid_i = self.torque_controller.force_pid_i
         self.pid_d = self.torque_controller.force_pid_d
-        print("For debug - self.pid_p = ", self.pid_p)
+        #print("For debug - self.pid_p = ", self.pid_p)
         del self.torque_controller
 
         #create publisher for torque command
@@ -81,8 +81,9 @@ class torque_transient_response_tester():
             if self.wait_for_steady_state:
                 if len(self.load_cell_forces) < self.window_size:
                     print("Error, elements in the load_cell_forces are not enough for mean calculation")
-                    continue
+                    return
                 self.window_reading_mean = np.mean(self.load_cell_forces[-self.window_size:])
+                #print("For debug - window_reading_mean = ", self.window_reading_mean)
 
     def pretension(self):
         rospy.loginfo("Pretension start...")
@@ -118,12 +119,16 @@ class torque_transient_response_tester():
         self.__publisher_torque_cmd.publish(tor_cmd_msg)
 
         #wait for steady state (3 seconds)
+        rospy.sleep(3.)
         self.wait_for_steady_state = True
         #check if the load cell readings falls in threshold
         while True:
-            error = abs(self.window_reading_mean - self.step_response_force) / self.step_response_force 
+            total_time = time.time() - self.start_time
+            increase_val = abs(self.step_response_force - self.pretension_force)
+            error = abs(self.window_reading_mean - self.step_response_force) / increase_val 
+            #print("For debug - error = ", error)
 
-            if error < self.steady_state_threshold:
+            if error < self.steady_state_threshold or total_time >= 8.0:
                 break       
         
         #stop recording 
@@ -149,11 +154,14 @@ class torque_transient_response_tester():
         plt.axhline(y=self.step_response_force, color='r', linestyle='-')
 
         #display the pid parameter
-        #ax.text(0.85, 0.95, f'Kp: {self.pid_p}, Ki: {self.pid_i}, Kd: {self.pid_d}, Force Unit: {self.testing_unit_index}', transform=ax.transAxes, fontsize=10, verticalalignment='top', bbox=dict(facecolor='white', edgecolor='black', boxstyle='round'))
-        #ax.text(0.85, 0.95, f'Kp: {self.pid_p}, Ki: {self.pid_i}, Kd: {self.pid_d}, Force Unit: {self.testing_unit_index}')
+        # add text box for the statistics
+        stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nUnit:%i'%(self.pid_p, self.pid_i, self.pid_d, self.testing_unit_index))
+        bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5)
+        ax.text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax.transAxes, horizontalalignment='right')
+        ax.set(ylim=(0, 5))
 
         save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_test_fig/'
-        file_name = plot_name + f'kp{self.pid_p}_ki{self.pid_i}_kd{self.pid_d}_unit{self.testing_unit_index}'
+        file_name = plot_name + 'kp%.1f_ki%.1f_kd%.1f_unit%i'%(self.pid_p, self.pid_i, self.pid_d, self.testing_unit_index)
         fig.savefig(save_dir + file_name + ".png")
         plt.show()
 
