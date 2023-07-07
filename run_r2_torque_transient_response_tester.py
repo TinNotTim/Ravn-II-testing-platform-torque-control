@@ -29,6 +29,7 @@ import rospy
 import sensor_msgs.msg
 import numpy as np
 import matplotlib.pyplot as plt
+import argparse
 from raven2_CRTK_torque_controller_FB import raven2_crtk_torque_controller
 
 class torque_transient_response_tester():
@@ -38,7 +39,10 @@ class torque_transient_response_tester():
         self.testing_unit_index = 5
         self.pretension_force = 1 #unit: N
         self.step_response_force = 3 #unit: N
-        self.STD_threshold_steady_state = 0 #TBD
+        self.wait_for_steady_state = False
+        self.window_size = 10 # the number of readings to take for mean calculation
+        self.window_reading_mean = 0
+        self.steady_state_threshold = 0.02 
 
         #variable for load cell reading
         self.load_cell_force = 0 #unit N
@@ -74,6 +78,12 @@ class torque_transient_response_tester():
             self.load_cell_force_times.append(self.cur_time - self.start_time)
             self.load_cell_forces.append(self.load_cell_force)
 
+            if self.wait_for_steady_state:
+                if len(self.load_cell_forces) < self.window_size:
+                    print("Error, elements in the load_cell_forces are not enough for mean calculation")
+                    continue
+                self.window_reading_mean = np.mean(self.load_cell_forces[-self.window_size:])
+
     def pretension(self):
         rospy.loginfo("Pretension start...")
         #create publish message
@@ -107,14 +117,21 @@ class torque_transient_response_tester():
         tor_cmd_msg.position[self.testing_unit_index] = self.step_response_force * 10 # unit: N/mm, convert to  torque command
         self.__publisher_torque_cmd.publish(tor_cmd_msg)
 
-        #wait for 3 seconds
-        rospy.sleep(3.)
+        #wait for steady state (3 seconds)
+        self.wait_for_steady_state = True
+        #check if the load cell readings falls in threshold
+        while True:
+            error = abs(self.window_reading_mean - self.step_response_force) / self.step_response_force 
 
+            if error < self.steady_state_threshold:
+                break       
+        
         #stop recording 
         rospy.loginfo("Stop recording load cell reading")
         self.load_cell_start_record = False
-	#print("For debug - load_cell_forces = ", self.load_cell_forces, len(self.load_cell_forces))
-        #	print("For debug - load_cell_force_times = ", self.load_cell_force_times, len(self.load_cell_force_times))
+        self.wait_for_steady_state = False
+        #print("For debug - load_cell_forces = ", self.load_cell_forces, len(self.load_cell_forces))
+        #print("For debug - load_cell_force_times = ", self.load_cell_force_times, len(self.load_cell_force_times))
 
         #plot the load cell force
         self.plotter("step_response")
@@ -136,8 +153,18 @@ class torque_transient_response_tester():
         #ax.text(0.85, 0.95, f'Kp: {self.pid_p}, Ki: {self.pid_i}, Kd: {self.pid_d}, Force Unit: {self.testing_unit_index}')
 
         save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_test_fig/'
-        fig.savefig(save_dir + plot_name + ".png")
+        file_name = plot_name + f'kp{self.pid_p}_ki{self.pid_i}_kd{self.pid_d}_unit{self.testing_unit_index}'
+        fig.savefig(save_dir + file_name + ".png")
         plt.show()
+
+
+# def get_args():
+#     parser = argparse.ArgumentParser(description='script for testing planners')
+
+#     parser.add_argument('-f', '--scene', type=str, default='2dof_robot_arm',
+#                         help='The environment to plan on, 2dof_robot_arm, 3dof_robot_arm, car')
+#     return parser.parse_args()
+
 
 if __name__ == '__main__':
         rospy.init_node('transient_response_tester', anonymous=True)
