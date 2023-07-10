@@ -33,6 +33,7 @@ import numpy as np
 import std_msgs.msg
 import geometry_msgs.msg
 import sensor_msgs.msg
+import geometry_msgs.msg
 
 import crtk_msgs.msg # crtk_msgs/operating_state
 #todo import the msgs.type of raven state
@@ -69,11 +70,10 @@ class raven2_crtk_torque_controller():
         self.measured_mpos_2 = None # [RIGHT ARM] (15,) array of measured motor pose
         self.measured_torque_2 = None # [RIGHT ARM] (15,) array of motor torque in ravenstate, derived from current command
 
-        #TODO:create the parameter for torque command and its callback function
+        #variables for load cell force readings
         self.torque_cmd = None
         self.load_cell_force_desired = None
         self.torque_cmd_first_call = False
-        #TODO end
         
         self.ravenstate_cur = None
         self.first_ravenstate = False
@@ -96,6 +96,12 @@ class raven2_crtk_torque_controller():
         self.t_cur = time.time()
         self.t_old = time.time()
         #------------------------------
+
+        #TODO: create a pose array with 8 empty pose in it for storing pid terms value
+        self.cur_pid_terms = geometry_msgs.msg.PoseArray()
+        self.cur_pid_terms.header = std_msgs.msg.Header()
+        self.cur_pid_terms.poses = [geometry_msgs.msg.Pose()] * 8
+        #TODO end
         
         self.load_cell_force = None  # (7,) array, [0] will not be used, [1] for motor 1, [2] for motor 2, so on and so forth
         self.load_cell_first_call = False
@@ -123,10 +129,13 @@ class raven2_crtk_torque_controller():
 
         self.subscriber_load_cell_force = rospy.Subscriber('/load_cell_forces', sensor_msgs.msg.JointState, self.__callback_load_cell_force)
 
-
-        #TODO: create a subscriber that receive message from /torque_cmd
+        #subscriber that receive torque commands sent from force controller
         topic = "torque_cmd"
         self.__subscriber_torque_cmd = rospy.Subscriber(topic, sensor_msgs.msg.JointState, self.__callback_torque_cmd)
+        
+        #TODO: Create publisher for the PID term in torque controller, the topic will be /pid_vals
+        topic = "pid_term_vals"
+        self.__publisher_pid_term_val = rospy.Publisher(topic, geometry_msgs.msg.PoseArray(), latch=True, queue_size=1)
         #TODO end
 
         # torque publishers
@@ -164,8 +173,6 @@ class raven2_crtk_torque_controller():
         #self.load_cell_force_desired = np.zeros(7)
         self.torque_cmd = msg.position #unit: N/mm
         self.load_cell_force_desired = np.array(msg.position) / 10.0 # unit: N, the radius of spool is 1cm
-
-
     #TODO end
 
     # [IMPT]: the joint_command is an np.array of dimension 16, please notice that the first entry is always 0 and does nothing, 
@@ -299,10 +306,19 @@ class raven2_crtk_torque_controller():
             #calculate dt
             self.t_cur = time.time()
             dt = self.t_cur - self.t_old
+            #calculate the P, I, and D term, include the error and gain
+            p_term = self.force_pid_p * self.e_cur[i]
+            i_term = self.force_pid_i * (self.e_sum[i] + self.e_cur[i])
+            d_term = self.force_pid_d * (self.e_cur[i] - self.e_old[i])/dt
+            #update the P,I, and D terms to the cur_pid_terms list
+            self.cur_pid_terms.poses[i].position.x = p_term
+            self.cur_pid_terms.poses[i].position.y = i_term
+            self.cur_pid_terms.poses[i].position.z = d_term
 
             #torque controller with PID control
             #cmd_comp[i] = self.tau_cmd_cur[i] + self.force_pid_p * self.e_cur[i] + self.force_pid_d * (self.e_cur[i] - self.e_old[i]) + self.force_pid_i * (self.e_old[i] + self.e_cur[i])
-            cmd_comp[i] = self.torque_cmd[i] + self.force_pid_p * self.e_cur[i] + self.force_pid_d * (self.e_cur[i] - self.e_old[i])/dt + self.force_pid_i * (self.e_sum[i] + self.e_cur[i])
+            #cmd_comp[i] = self.torque_cmd[i] + self.force_pid_p * self.e_cur[i] + self.force_pid_d * (self.e_cur[i] - self.e_old[i])/dt + self.force_pid_i * (self.e_sum[i] + self.e_cur[i])
+            cmd_comp[i] = self.torque_cmd[i] + p_term + i_term + d_term
 
             #if i == 5:
                 #print("D term: ", (self.e_cur[i] - self.e_old[i])/dt)
@@ -316,6 +332,9 @@ class raven2_crtk_torque_controller():
         cmd_comp = cmd_comp.clip(-8.0, 80.0)
         self.tau_cmd_cur = cmd_comp[:]
         self.t_old = self.t_cur
+        #publish the cur_pid_terms
+        self.__publisher_pid_term_val.publish(self.cur_pid_terms)
+        #publish the compensated torque cmd
         self.pub_torque_command(cmd_comp.astype(int))
         print(cmd_comp.astype(int))
         #print("e_sum = ",self.e_sum)

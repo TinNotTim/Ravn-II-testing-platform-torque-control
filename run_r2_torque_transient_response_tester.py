@@ -26,6 +26,8 @@ This piece of code is for testing the transient response of force unit.
 import sys
 import time
 import rospy
+import std_msgs.msg
+import geometry_msgs.msg
 import sensor_msgs.msg
 import numpy as np
 import matplotlib.pyplot as plt
@@ -35,24 +37,44 @@ from raven2_CRTK_torque_controller_FB import raven2_crtk_torque_controller
 class torque_transient_response_tester():
 
     def __init__(self):
-        #create parameters
+        #general parameters
         self.testing_unit_index = 5
         self.pretension_force = 1 #unit: N
-        self.step_response_force = 3 #unit: N
+        self.cur_setpoint = 0 #unit: N
+        self.setpoints = [] #for plotting 
+        
+
+        #parameters for step_response()
         self.wait_for_steady_state = False
         self.window_size = 30 # the number of readings to take for mean calculation
         self.window_reading_mean = 0
         self.steady_state_threshold = 0.01 
+        self.step_response_force = 3 #unit: N
 
         #variable for load cell reading
         self.load_cell_force = 0 #unit N
-        self.load_cell_forces = []
-        self.load_cell_force_times = []
+        self.load_cell_forces = [] #for plotting
+        self.load_cell_force_times = [] #for plotting
         self.start_time = 0
         self.cur_time = 0
         self.load_cell_start_record = False #to indicate the start of recording
 
-        #create a torque controller object, just for getting the PID gain
+        #TODO:Create a class variable to store current torque_cmd term value and a plotting list
+        #variable for the current control signal
+        self.cur_tor_cmd = 0 #unit: N/mm
+        self.tor_cmds = [] #for plotting
+        #TODO end
+
+        #TODO: create variables and plotting list for current pid terms 
+        self.cur_p_term = 0 
+        self.cur_i_term = 0
+        self.cur_d_term = 0
+        self.p_terms = [] #for plotting
+        self.i_terms = [] #for plotting
+        self.d_terms = [] #for plotting
+        #TODO end
+
+        #create a torque controller object, just for getting the current PID gain
         self.torque_controller = raven2_crtk_torque_controller(name_space = ' ', robot_name_1 = 'arm1', robot_name_2 = 'arm2', grasper_name = 'grasp1', use_load_cell = True)
         self.pid_p = self.torque_controller.force_pid_p
         self.pid_i = self.torque_controller.force_pid_i
@@ -66,10 +88,19 @@ class torque_transient_response_tester():
         #create subscriber for load cell force
         self.subscriber_load_cell_force = rospy.Subscriber('/load_cell_forces', sensor_msgs.msg.JointState, self.__callback_load_cell_force)
 
+        #TODO: Create a subscriber that subscribes to /arm2/servo_jp
+        #subscriber for the current torque command after PID compensation
+        self.__publisher_actual_torque_cmd = rospy.Subscriber('arm2/servo_jp', sensor_msgs.msg.JointState, self.__callback_actual_torque_cmd)
+        #TODO end
 
+        #TODO: Create a subscriber in transient tester subscribes to /pid_term_vals
+        self.subscriber_pid_term_val = rospy.Subscriber('pid_term_vals', geometry_msgs.msg.PoseArray, self.__callback_pid_term_val)
+        #TODO end
+
+    # This is the most important callback function, since it will create all the plotting list with synchronized time
     def __callback_load_cell_force(self, msg):
         self.load_cell_force = msg.position[self.testing_unit_index-1]
-
+        
         if self.load_cell_start_record:
             #record the force reading and time 
             if self.start_time == 0:
@@ -78,6 +109,21 @@ class torque_transient_response_tester():
             self.load_cell_force_times.append(self.cur_time - self.start_time)
             self.load_cell_forces.append(self.load_cell_force)
 
+            #TODO:save current torque command in the plotting list during the recording period
+            self.tor_cmds.append(self.cur_tor_cmd)
+            #TODO end
+
+            #TODO:save current setpoint in the plotting list during the recording period
+            self.setpoints.append(self.cur_setpoint)
+            #TODO end
+
+            #TODO: save P, I and D term in separated plotting list during the recording period
+            self.p_terms.append(self.cur_p_term)
+            self.i_terms.append(self.cur_i_term)
+            self.d_terms.append(self.cur_d_term)
+            #TODO end
+
+            #this is for step_response() to see if the steady state is reached
             if self.wait_for_steady_state:
                 if len(self.load_cell_forces) < self.window_size:
                     print("Error, elements in the load_cell_forces are not enough for mean calculation")
@@ -85,16 +131,38 @@ class torque_transient_response_tester():
                 self.window_reading_mean = np.mean(self.load_cell_forces[-self.window_size:])
                 #print("For debug - window_reading_mean = ", self.window_reading_mean)
 
-    def pretension(self):
-        rospy.loginfo("Pretension start...")
+    #TODO: Create a callback function for torque command, extract the corresponding command from JointState msg based on the testing unit index
+    def __callback_actual_torque_cmd(self, msg):
+        #the torque cmd will be store in msg.position
+        #position is a list of size of 16, the force units occupy from 1 to 6
+        self.cur_tor_cmd = msg.position[self.testing_unit_index]
+    #TODO end
+
+    #TODO: Create a callback function, extract the corresponding sublist from pid_msg based on the testing unit index
+    def __callback_pid_term_val(self, msg):
+        pid_term_for_unit = msg.poses[self.testing_unit_index].position
+        self.cur_p_term = pid_term_for_unit.x
+        self.cur_i_term = pid_term_for_unit.y
+        self.cur_d_term = pid_term_for_unit.z
+    #TODO end
+
+    #TODO: create a function that publish torque command and update the current setpoint
+    def pub_force_cmd(self, desired_force):
+        #update current setpoint
+        self.cur_setpoint = desired_force
+
         #create publish message
         tor_cmd_msg = sensor_msgs.msg.JointState()
         tor_cmd_msg.position = np.zeros(7)
-        tor_cmd_msg.position[self.testing_unit_index] = self.pretension_force * 10 # unit: N/mm, convert to  torque command
+        tor_cmd_msg.position[self.testing_unit_index] = self.cur_setpoint * 10 # unit: N/mm, convert to  torque command
 
         #publish the message for pre-tension
         self.__publisher_torque_cmd.publish(tor_cmd_msg)
+    #TODO end
 
+    def pretension(self):
+        rospy.loginfo("Pretension start...")
+        self.pub_force_cmd(self.pretension_force)
         #wait for 3 seconds
         rospy.sleep(3.)
         rospy.loginfo("Pretension completed")      
@@ -113,10 +181,7 @@ class torque_transient_response_tester():
         rospy.sleep(1.)
 
         #publish the step response
-        tor_cmd_msg = sensor_msgs.msg.JointState()
-        tor_cmd_msg.position = np.zeros(7)
-        tor_cmd_msg.position[self.testing_unit_index] = self.step_response_force * 10 # unit: N/mm, convert to  torque command
-        self.__publisher_torque_cmd.publish(tor_cmd_msg)
+        self.pub_force_cmd(self.step_response_force)
 
         #wait for steady state (3 seconds)
         rospy.sleep(3.)
@@ -144,21 +209,30 @@ class torque_transient_response_tester():
         
 
     def plotter(self, plot_name="test"):
-        fig, ax = plt.subplots()
-        ax.plot(self.load_cell_force_times, self.load_cell_forces)
+        fig, ax = plt.subplots(2)
+        fig.suptitle(plot_name)
 
-        ax.set(xlabel='time (s)', ylabel='force reading (N)', title=plot_name)
-        #ax.grid()
-        #display the initial force and desired force
-        plt.axhline(y=self.pretension_force, color='b', linestyle='-')
-        plt.axhline(y=self.step_response_force, color='r', linestyle='-')
+        #plot setpoints, load cell readings and pid terms in first graph
+        ax[0].plot(self.load_cell_force_times, self.setpoints, label="setpoint")
+        ax[0].plot(self.load_cell_force_times, self.load_cell_forces, label="load cell force")
+        ax[0].plot(self.load_cell_force_times, self.p_terms, label="p term")
+        ax[0].plot(self.load_cell_force_times, self.i_terms, label="i term")
+        ax[0].plot(self.load_cell_force_times, self.d_terms, label="d term")
+        ax[0].set(xlabel='time (s)', ylabel='force reading (N)')
+        ax[1].set_title("Output signal")
 
         #display the pid parameter
         # add text box for the statistics
         stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nUnit:%i'%(self.pid_p, self.pid_i, self.pid_d, self.testing_unit_index))
         bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5)
-        ax.text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax.transAxes, horizontalalignment='right')
-        ax.set(ylim=(0, 5))
+        ax[0].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax.transAxes, horizontalalignment='right')
+        ax[0].set(ylim=(0, 5))
+
+        #plot control signal
+        ax[1].plot(self.load_cell_force_times, self.tor_cmds)
+        ax[1].set(xlabel='time (s)', ylabel='torque command (N/mm)')
+        ax[1].set_title("Control Signal")
+
 
         save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_test_fig/'
         file_name = plot_name + 'kp%.1f_ki%.1f_kd%.1f_unit%i'%(self.pid_p, self.pid_i, self.pid_d, self.testing_unit_index)
