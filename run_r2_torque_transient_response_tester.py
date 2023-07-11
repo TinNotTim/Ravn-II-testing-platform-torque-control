@@ -33,6 +33,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 from raven2_CRTK_torque_controller_FB import raven2_crtk_torque_controller
+import copy
 
 class torque_transient_response_tester():
 
@@ -134,14 +135,14 @@ class torque_transient_response_tester():
     #TODO: Create a callback function for torque command, extract the corresponding command from JointState msg based on the testing unit index
     def __callback_actual_torque_cmd(self, msg):
         #the torque cmd will be store in msg.position
-        #position is a list of size of 16, the force units occupy from 1 to 6
-        self.cur_tor_cmd = msg.position[self.testing_unit_index]
+        #position is a list of size of 16, the force units occupy from 0 to 5
+        self.cur_tor_cmd = msg.position[self.testing_unit_index-1]
     #TODO end
 
     #TODO: Create a callback function, extract the corresponding sublist from pid_msg based on the testing unit index
     def __callback_pid_term_val(self, msg):
         pid_term_for_unit = msg.poses[self.testing_unit_index].position
-        self.cur_p_term = pid_term_for_unit.x
+        self.cur_p_term = pid_term_for_unit.x 
         self.cur_i_term = pid_term_for_unit.y
         self.cur_d_term = pid_term_for_unit.z
     #TODO end
@@ -206,37 +207,51 @@ class torque_transient_response_tester():
         #plot the load cell force
         self.plotter("step_response")
 
+
+
         
 
     def plotter(self, plot_name="test"):
-        fig, ax = plt.subplots(2)
+        fig, ax = plt.subplots(3)
         fig.suptitle(plot_name)
 
         #plot setpoints, load cell readings and pid terms in first graph
         ax[0].plot(self.load_cell_force_times, self.setpoints, label="setpoint")
         ax[0].plot(self.load_cell_force_times, self.load_cell_forces, label="load cell force")
-        ax[0].plot(self.load_cell_force_times, self.p_terms, label="p term")
-        ax[0].plot(self.load_cell_force_times, self.i_terms, label="i term")
-        ax[0].plot(self.load_cell_force_times, self.d_terms, label="d term")
         ax[0].set(xlabel='time (s)', ylabel='force reading (N)')
-        ax[1].set_title("Output signal")
+        ax[0].set_title("Output signal")
 
         #display the pid parameter
         # add text box for the statistics
         stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nUnit:%i'%(self.pid_p, self.pid_i, self.pid_d, self.testing_unit_index))
         bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5)
-        ax[0].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax.transAxes, horizontalalignment='right')
+        ax[0].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax[0].transAxes, horizontalalignment='right')
         ax[0].set(ylim=(0, 5))
+        ax[0].legend()
+
+        #plot pid terms
+        ax[1].plot(self.load_cell_force_times, self.p_terms, label="p term")
+        ax[1].plot(self.load_cell_force_times, self.i_terms, label="i term")
+        ax[1].plot(self.load_cell_force_times, self.d_terms, label="d term")
+        ax[1].set(xlabel='time (s)', ylabel='torque command (N/mm)')
+        ax[1].set_title("PID values")
+        ax[1].legend()
 
         #plot control signal
-        ax[1].plot(self.load_cell_force_times, self.tor_cmds)
-        ax[1].set(xlabel='time (s)', ylabel='torque command (N/mm)')
-        ax[1].set_title("Control Signal")
+        ax[2].plot(self.load_cell_force_times, self.tor_cmds)
+        ax[2].set(xlabel='time (s)', ylabel='torque command (N/mm)')
+        ax[2].set_title("Control Signal")
+
+        #mng = plt.get_current_fig_manager()
+        #mng.full_screen_toggle()
+
+        figure = plt.gcf() # get current figure
+        figure.set_size_inches(8, 6)
 
 
         save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_test_fig/'
         file_name = plot_name + 'kp%.1f_ki%.1f_kd%.1f_unit%i'%(self.pid_p, self.pid_i, self.pid_d, self.testing_unit_index)
-        fig.savefig(save_dir + file_name + ".png")
+        fig.savefig(save_dir + file_name + ".png", dpi=100)
         plt.show()
 
 
