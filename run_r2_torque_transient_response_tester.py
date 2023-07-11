@@ -207,6 +207,49 @@ class torque_transient_response_tester():
         #plot the load cell force
         self.plotter("step_response")
 
+    def multi_setpoints(self):
+        #pretension the string
+        self.pretension()
+
+        #start recording
+        rospy.loginfo("Start recording load cell reading")
+        self.start_time = time.time()
+        self.load_cell_start_record = True     
+
+        #wait for 1 seconds
+        rospy.sleep(1.)
+
+        #publish the step response
+        self.pub_force_cmd(3.0)
+        #wait for steady state (3 seconds)
+        rospy.sleep(3.)
+        #publish the step response
+        self.pub_force_cmd(5.0)
+        #wait for steady state (3 seconds)
+        rospy.sleep(3.)
+        #publish the step response
+        self.pub_force_cmd(2.0)
+        #wait for steady state (3 seconds)
+        rospy.sleep(3.)
+        #publish the step response
+        self.pub_force_cmd(4.0)
+        #wait for steady state (3 seconds)
+        rospy.sleep(3.)
+        #publish the step response
+        self.pub_force_cmd(1.0)
+        #wait for steady state (3 seconds)
+        rospy.sleep(3.)
+
+        #stop recording 
+        rospy.loginfo("Stop recording load cell reading")
+        self.load_cell_start_record = False
+        #print("For debug - load_cell_forces = ", self.load_cell_forces, len(self.load_cell_forces))
+        #print("For debug - load_cell_force_times = ", self.load_cell_force_times, len(self.load_cell_force_times))
+
+        #plot the load cell force
+        self.plotter("multi_setpoints")
+
+
 
 
         
@@ -269,4 +312,5 @@ if __name__ == '__main__':
 
         tester = torque_transient_response_tester()
         #tester.plotter()
-        tester.step_response() 
+        #tester.step_response()
+        tester.multi_setpoints()
