@@ -84,9 +84,9 @@ class raven2_crtk_torque_controller():
 
         #------------------------------
         #parameters for PID controller
-        self.force_pid_p = 13# p factor of force PID feedback control using load cell
+        self.force_pid_p = 15# p factor of force PID feedback control using load cell
         self.force_pid_i = 1.0 #1.0
-        self.force_pid_d = 0.0 #0.075
+        self.force_pid_d = 0 #0.075
         # Anti windup        
         self.windupMax = 0
         # default value
@@ -309,7 +309,7 @@ class raven2_crtk_torque_controller():
             #calculate the P, I, and D term, include the error and gain
             p_term = self.force_pid_p * self.e_cur[i]
             i_term = self.force_pid_i * (self.e_sum[i] + self.e_cur[i])
-            d_term = self.force_pid_d * (self.e_cur[i] - self.e_old[i])/dt
+            d_term = -self.force_pid_d * (self.e_cur[i] - self.e_old[i])/dt
             #update the P,I, and D terms to the cur_pid_terms list
             self.cur_pid_terms.poses[i].position.x = p_term * 1.0
             self.cur_pid_terms.poses[i].position.y = i_term * 1.0

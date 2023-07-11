@@ -269,7 +269,7 @@ class torque_transient_response_tester():
         stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nUnit:%i'%(self.pid_p, self.pid_i, self.pid_d, self.testing_unit_index))
         bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5)
         ax[0].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax[0].transAxes, horizontalalignment='right')
-        ax[0].set(ylim=(0, 5))
+        ax[0].set(ylim=(0, 6))
         ax[0].legend()
 
         #plot pid terms
