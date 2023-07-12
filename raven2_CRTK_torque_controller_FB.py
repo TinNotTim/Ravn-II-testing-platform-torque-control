@@ -99,7 +99,7 @@ class raven2_crtk_torque_controller():
         #TODO: create a pose array with 8 empty pose in it for storing pid terms value
         self.cur_pid_terms = geometry_msgs.msg.PoseArray()
         self.cur_pid_terms.header = std_msgs.msg.Header()
-        self.cur_pid_terms.poses = [geometry_msgs.msg.Pose()] * 8
+        self.cur_pid_terms.poses = [geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose()] 
         #TODO end
         
         self.load_cell_force = None  # (7,) array, [0] will not be used, [1] for motor 1, [2] for motor 2, so on and so forth
@@ -134,7 +134,7 @@ class raven2_crtk_torque_controller():
         
         #TODO: Create publisher for the PID term in torque controller, the topic will be /pid_vals
         topic = "pid_term_vals"
-        self.__publisher_pid_term_val = rospy.Publisher(topic, geometry_msgs.msg.PoseArray(), latch=True, queue_size=1)
+        self.__publisher_pid_term_val = rospy.Publisher(topic, geometry_msgs.msg.PoseArray, latch=True, queue_size=1)
         #TODO end
 
         # torque publishers
