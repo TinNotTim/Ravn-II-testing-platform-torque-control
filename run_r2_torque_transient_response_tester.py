@@ -33,6 +33,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 from raven2_CRTK_torque_controller_FB import raven2_crtk_torque_controller
+from run_r2_multi_load_cell_force_pub import exp_decay_factor
 import copy
 
 class torque_transient_response_tester():
@@ -51,6 +52,10 @@ class torque_transient_response_tester():
         self.window_reading_mean = 0
         self.steady_state_threshold = 0.01 
         self.step_response_force = 3 #unit: N
+
+        #parameters for disturbance_test()
+        self.disturbance_test_force = 3 #unit: N
+        self.disturbance_test_time = 30 #unit: second
 
         #variable for load cell reading
         self.load_cell_force = 0 #unit N
@@ -207,7 +212,8 @@ class torque_transient_response_tester():
         #plot the load cell force
         self.plotter("step_response")
 
-    def multi_setpoints(self):
+    #huge change between setpoints, might oscillate due to the delay in I term
+    def multi_setpoints(self): 
         #pretension the string
         self.pretension()
 
@@ -249,6 +255,73 @@ class torque_transient_response_tester():
         #plot the load cell force
         self.plotter("multi_setpoints")
 
+    def multi_setpoints_sine(self):
+        #define a discrete sine wave 
+        start = 0
+        stop = 2 * np.p
+        # Define the number of data points
+        num_points = 30
+
+        # Generate the time axis
+        t = np.linspace(start, stop, num_points)
+
+        # Generate the discrete sine wave
+        amplitude = 4
+        frequency = 1
+        offset = self.pretension_force + amplitude/2
+        sine_wave_setpoints = offset + amplitude * np.sin(2 * np.pi * frequency * t)
+
+        #pretension the string
+        self.pretension()
+
+        #start recording
+        rospy.loginfo("Start recording load cell reading")
+        self.start_time = time.time()
+        self.load_cell_start_record = True     
+
+        #wait for 1 seconds
+        rospy.sleep(1.)
+
+
+        # use a while loop to gently change the setpoint
+        current_force = self.pretension_force
+        for setpoint in sine_wave_setpoints:
+            self.pub_force_cmd(setpoint)
+            rospy.sleep(1.)
+
+        #stop recording 
+        rospy.loginfo("Stop recording load cell reading")
+        self.load_cell_start_record = False
+
+        #plot the load cell force
+        self.plotter("multi_setpoints_sine")
+
+    
+    #have the raven run random trajectory, and let force unit output a constant torque, see how well it maintains it
+    def disturbance_test(self):
+        #pretension the string
+        self.pretension()
+
+        user_input = input("Start the random trajectory, then enter any key")
+
+        #start recording
+        rospy.loginfo("Start recording load cell reading")
+        self.start_time = time.time()
+        self.load_cell_start_record = True     
+
+        #wait for 1 seconds
+        rospy.sleep(1.)
+
+        self.pub_force_cmd(self.disturbance_test_force)
+        rospy.sleep(self.disturbance_test_time)
+
+        #stop recording 
+        rospy.loginfo("Stop recording load cell reading")
+        self.load_cell_start_record = False
+
+        #plot the load cell force
+        self.plotter("disturbance_test")
+
 
 
 
@@ -266,7 +339,7 @@ class torque_transient_response_tester():
 
         #display the pid parameter
         # add text box for the statistics
-        stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nUnit:%i'%(self.pid_p, self.pid_i, self.pid_d, self.testing_unit_index))
+        stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nExponential decay factor = %.1f\nUnit:%i'%(self.pid_p, self.pid_i, self.pid_d, exp_decay_factor, self.testing_unit_index))
         bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5)
         ax[0].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax[0].transAxes, horizontalalignment='right')
         ax[0].set(ylim=(0, 6))
@@ -293,7 +366,7 @@ class torque_transient_response_tester():
 
 
         save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_test_fig/'
-        file_name = plot_name + 'kp%.1f_ki%.1f_kd%.1f_unit%i'%(self.pid_p, self.pid_i, self.pid_d, self.testing_unit_index)
+        file_name = plot_name + '_kp%.1f_ki%.1f_kd%.1f_unit%i'%(self.pid_p, self.pid_i, self.pid_d, self.testing_unit_index)
         fig.savefig(save_dir + file_name + ".png", dpi=100)
         plt.show()
 
@@ -311,6 +384,6 @@ if __name__ == '__main__':
         rospy.loginfo("Node is created")
 
         tester = torque_transient_response_tester()
-        #tester.plotter()
+        #tester.plotter() 
         #tester.step_response()
         tester.multi_setpoints()
