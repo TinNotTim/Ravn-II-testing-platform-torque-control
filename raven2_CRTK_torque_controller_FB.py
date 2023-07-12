@@ -33,7 +33,6 @@ import numpy as np
 import std_msgs.msg
 import geometry_msgs.msg
 import sensor_msgs.msg
-import geometry_msgs.msg
 
 import crtk_msgs.msg # crtk_msgs/operating_state
 #todo import the msgs.type of raven state
@@ -84,9 +83,9 @@ class raven2_crtk_torque_controller():
 
         #------------------------------
         #parameters for PID controller
-        self.force_pid_p = 15# p factor of force PID feedback control using load cell
-        self.force_pid_i = 1.0 #1.0
-        self.force_pid_d = 0 #0.075
+        self.force_pid_p = 0.8# p factor of force PID feedback control using load cell
+        self.force_pid_i = 0.8#1.0
+        self.force_pid_d = 0.5 #0.075
         # Anti windup        
         self.windupMax = 0
         # default value
@@ -100,7 +99,7 @@ class raven2_crtk_torque_controller():
         #TODO: create a pose array with 8 empty pose in it for storing pid terms value
         self.cur_pid_terms = geometry_msgs.msg.PoseArray()
         self.cur_pid_terms.header = std_msgs.msg.Header()
-        self.cur_pid_terms.poses = [geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose(), geometry_msgs.msg.Pose()]
+        self.cur_pid_terms.poses = [geometry_msgs.msg.Pose()] * 8
         #TODO end
         
         self.load_cell_force = None  # (7,) array, [0] will not be used, [1] for motor 1, [2] for motor 2, so on and so forth
@@ -135,7 +134,7 @@ class raven2_crtk_torque_controller():
         
         #TODO: Create publisher for the PID term in torque controller, the topic will be /pid_vals
         topic = "pid_term_vals"
-        self.__publisher_pid_term_val = rospy.Publisher(topic, geometry_msgs.msg.PoseArray, latch=True, queue_size=1)
+        self.__publisher_pid_term_val = rospy.Publisher(topic, geometry_msgs.msg.PoseArray(), latch=True, queue_size=1)
         #TODO end
 
         # torque publishers
@@ -286,7 +285,7 @@ class raven2_crtk_torque_controller():
             print('No ravenstate or load cell force or torque command yet, command not sent.')
             return -1
         
-        force_command = self.load_cell_force_desired * 1.0
+        force_command = self.load_cell_force_desired
         cmd_comp = np.zeros((16))
         for i in range(1,7):
             # #torque controller with only P control
@@ -309,18 +308,16 @@ class raven2_crtk_torque_controller():
             #calculate the P, I, and D term, include the error and gain
             p_term = self.force_pid_p * self.e_cur[i]
             i_term = self.force_pid_i * (self.e_sum[i] + self.e_cur[i])
-            d_term = -self.force_pid_d * (self.e_cur[i] - self.e_old[i])/dt
+            d_term = self.force_pid_d * (self.e_cur[i] - self.e_old[i])/dt
             #update the P,I, and D terms to the cur_pid_terms list
-            self.cur_pid_terms.poses[i].position.x = p_term * 1.0
-            self.cur_pid_terms.poses[i].position.y = i_term * 1.0
-            self.cur_pid_terms.poses[i].position.z = d_term * 1.0
-            #print("111111111111For debug - cur_pid_terms.poses = ",self.cur_pid_terms.poses)
+            self.cur_pid_terms.poses[i].position.x = p_term
+            self.cur_pid_terms.poses[i].position.y = i_term
+            self.cur_pid_terms.poses[i].position.z = d_term
 
             #torque controller with PID control
             #cmd_comp[i] = self.tau_cmd_cur[i] + self.force_pid_p * self.e_cur[i] + self.force_pid_d * (self.e_cur[i] - self.e_old[i]) + self.force_pid_i * (self.e_old[i] + self.e_cur[i])
             #cmd_comp[i] = self.torque_cmd[i] + self.force_pid_p * self.e_cur[i] + self.force_pid_d * (self.e_cur[i] - self.e_old[i])/dt + self.force_pid_i * (self.e_sum[i] + self.e_cur[i])
-            #cmd_comp[i] = self.torque_cmd[i] + p_term + i_term + d_term
-            cmd_comp[i] = p_term + i_term + d_term
+            cmd_comp[i] = self.torque_cmd[i] + p_term + i_term + d_term
 
             #if i == 5:
                 #print("D term: ", (self.e_cur[i] - self.e_old[i])/dt)
@@ -335,9 +332,7 @@ class raven2_crtk_torque_controller():
         self.tau_cmd_cur = cmd_comp[:]
         self.t_old = self.t_cur
         #publish the cur_pid_terms
-        #print("222222222222222For debug - cur_pid_terms = ",self.cur_pid_terms.poses)
         self.__publisher_pid_term_val.publish(self.cur_pid_terms)
-        
         #publish the compensated torque cmd
         self.pub_torque_command(cmd_comp.astype(int))
         print(cmd_comp.astype(int))
