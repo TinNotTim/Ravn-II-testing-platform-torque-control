@@ -90,7 +90,7 @@ class raven2_crtk_force_controller():
         self.r2_tor_ctl = raven2_CRTK_torque_controller.raven2_crtk_torque_controller(name_space = ' ', robot_name_1 = 'arm1', robot_name_2 = 'arm2', grasper_name = 'grasp1', use_load_cell = True)
         self.tor_cmd = np.zeros(7)  # [0] is not used, [1] for motor 1
 
-        self.y_force_only = True  # [TEST] This is only used for a temprary test, where only y axis force is given, by motor 4 and 5
+        self.y_force_only = False  # [TEST] This is only used for a temprary test, where only y axis force is given, by motor 4 and 5
 
         
         self.prev_tor_cmd = None
@@ -128,8 +128,10 @@ class raven2_crtk_force_controller():
     
     def __callback_ravenstate(self, msg):
         #isolate the loaction of gold arm grasper
-        end_effector_pos_raw = msg.pos[0:2] #unit: um
+        end_effector_pos_raw = np.array(msg.pos[0:3]) #unit: um
+        #print("For debug - end_effector_pos_raw = ", end_effector_pos_raw, np.shape(end_effector_pos_raw))
         self.end_effector_loc = end_effector_pos_raw / 1000.0 #unit: mm
+        #print("For debug - self.end_effector_loc = ", self.end_effector_loc)
 
 
     def compute_motor_dir(self):
@@ -161,7 +163,7 @@ class raven2_crtk_force_controller():
         # TODO end
         # solution = minimize(self.objective, np.random.rand(6), bounds=bounds)
         self.tor_cmd[1:] = solution.x
-        print("Solution: ", solution.x)  # [Test] Print the solution
+        #print("Solution: ", solution.x)  # [Test] Print the solution
         
         if self.y_force_only:
             self.force_d_static[0] = 0
