@@ -61,7 +61,7 @@ class raven2_crtk_force_controller():
                                   [0, 0, -500]
                                   ])
 
-        self.end_effector_loc = np.array([-77.0, -25.0, 14.0])
+        
 
         self.motor_dir = np.array([[1, 0, 0],     # unit vector of the direction of each motor, computed by motor location and end-effector location, transform might be needed, [0] not used, [1] for motor 1 
                                   [1, 0, 0],
@@ -71,6 +71,11 @@ class raven2_crtk_force_controller():
                                   [0, 0, 1],
                                   [0, 0, -1]
                                   ])
+
+
+        #variable for end_effector location
+        self.end_effector_loc = None 
+        # self.end_effector_loc = np.array([-77.0, -25.0, 14.0])
 
         self.force_d = np.array([0.0,0.0,0.0])  # The desired force, will be updated by callback
         self.force_d_static = np.array([0.0,0.0,0.0])  # The desired force, will not be update by callback, will stay static during solving the 6 forces
@@ -107,6 +112,9 @@ class raven2_crtk_force_controller():
         self.__publisher_torque_cmd = rospy.Publisher('torque_cmd', sensor_msgs.msg.JointState, latch = True, queue_size = 1)
         #TODO end
         self.__subscriber_force_cmd = rospy.Subscriber('force_cmd', sensor_msgs.msg.JointState, self.__callback_force_cmd)
+        #TODO: create a subscriber to get the end effector position
+        self.__subscriber_ravenstate = rospy.Subscriber('ravenstate', raven_state, self.__callback_ravenstate)
+        #TODO end
 
         return None
 
@@ -117,6 +125,12 @@ class raven2_crtk_force_controller():
         self.new_force_cmd = True
         #print('force_cmd received')
         return None
+    
+    def __callback_ravenstate(self, msg):
+        #isolate the loaction of gold arm grasper
+        end_effector_pos_raw = msg.pos[0:2] #unit: um
+        self.end_effector_loc = end_effector_pos_raw / 1000.0 #unit: mm
+
 
     def compute_motor_dir(self):
         self.motor_dir = self.end_effector_loc - self.motor_loc 
@@ -131,6 +145,9 @@ class raven2_crtk_force_controller():
             self.new_force_cmd = True
 
         if not self.new_force_cmd:
+            return None
+        
+        if self.end_effector_loc == None:
             return None
         self.compute_motor_dir()
         # bounds = [(2.2, 5.0)] * 6  # No bounds on the variables
