@@ -87,6 +87,8 @@ class raven2_crtk_force_controller():
 
         self.y_force_only = True  # [TEST] This is only used for a temprary test, where only y axis force is given, by motor 4 and 5
 
+        
+        self.prev_tor_cmd = None
 
         if not testing:
             self.__init_pub_sub()
@@ -132,13 +134,17 @@ class raven2_crtk_force_controller():
             return None
         self.compute_motor_dir()
         # bounds = [(2.2, 5.0)] * 6  # No bounds on the variables
-        bounds = [(2.2, 6.0)] * 6
+        bounds = [(0.5, 6.0)] * 6 #unit: N
 
-        self.force_d_static[:] =  self.force_d[:]      
-        solution = minimize(self.objective, np.random.rand(6), bounds=bounds)
-        
+        self.force_d_static[:] =  self.force_d[:]
+        #TODO:add a mechanism that use the previous result as initial guess
+        if self.prev_tor_cmd is None:
+            self.prev_tor_cmd = np.random.rand(6)   
+        solution = minimize(self.objective, self.prev_tor_cmd, bounds=bounds)
+        # TODO end
+        # solution = minimize(self.objective, np.random.rand(6), bounds=bounds)
         self.tor_cmd[1:] = solution.x
-        #print("Solution: ", solution.x)  # [Test] Print the solution
+        print("Solution: ", solution.x)  # [Test] Print the solution
         
         if self.y_force_only:
             self.force_d_static[0] = 0
@@ -168,6 +174,8 @@ class raven2_crtk_force_controller():
         msg.position[:] = self.force_d_static.flat # [test] this line should be muted
         self.__publisher_force_applied.publish(msg)
         self.new_force_cmd = False
+        #TODO: update the current tor_cmd to the prev_tor_cmd
+        self.prev_tor_cmd = solution.x
 
 
         return None
