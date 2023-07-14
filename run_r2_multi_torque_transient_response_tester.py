@@ -398,7 +398,7 @@ class torque_transient_response_tester():
         #wait for 1 seconds
         rospy.sleep(1.)
 
-        
+        #publish the setpoints
         for i in range(self.num_points):
             desired_force = np.zeros(6)
             for unit_index in self.testing_unit_indices:
@@ -406,17 +406,12 @@ class torque_transient_response_tester():
             self.pub_force_cmd(desired_force)
             rospy.sleep(1.)
 
-        # use a while loop to gently change the setpoint
-        for setpoint in sine_wave_setpoints:
-            self.pub_force_cmd(setpoint)
-            rospy.sleep(1.)
-
         #stop recording 
         rospy.loginfo("Stop recording load cell reading")
         self.load_cell_start_record = False
 
         #plot the load cell force
-        self.plotter("multi_setpoints_sine_with_disturb")
+        self.plotter("multi_setpoints_wave_with_disturb")
 
 
 
@@ -424,47 +419,49 @@ class torque_transient_response_tester():
         
 
     def plotter(self, plot_name="test"):
-        fig, ax = plt.subplots(3)
-        fig.suptitle(plot_name)
 
-        #plot setpoints, load cell readings and pid terms in first graph
-        ax[0].plot(self.load_cell_force_times, self.setpoints, label="setpoint")
-        ax[0].plot(self.load_cell_force_times, self.load_cell_forces, label="load cell force")
-        ax[0].set(xlabel='time (s)', ylabel='force reading (N)')
-        ax[0].set_title("Output signal")
+        for unit_index in self.testing_unit_indices:
+            fig, ax = plt.subplots(3)
+            fig.suptitle(plot_name)
 
-        #display the pid parameter
-        # add text box for the statistics
-        stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nDecay factor = %.1f\nUnit:%i'%(self.pid_p, self.pid_i, self.pid_d, self.exp_decay_factor, self.testing_unit_index))
-        bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5)
-        ax[0].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax[0].transAxes, horizontalalignment='right')
-        ax[0].set(ylim=(0, 6))
-        ax[0].legend()
+            #plot setpoints, load cell readings and pid terms in first graph
+            ax[0].plot(self.load_cell_force_times, self.setpoints[unit_index -1], label="setpoint")
+            ax[0].plot(self.load_cell_force_times, self.load_cell_forces[unit_index -1], label="load cell force")
+            ax[0].set(xlabel='time (s)', ylabel='force reading (N)')
+            ax[0].set_title("Output signal")
 
-        #plot pid terms
-        ax[1].plot(self.load_cell_force_times, self.p_terms, label="p term")
-        ax[1].plot(self.load_cell_force_times, self.i_terms, label="i term")
-        ax[1].plot(self.load_cell_force_times, self.d_terms, label="d term")
-        ax[1].set(xlabel='time (s)', ylabel='torque command (N/mm)')
-        ax[1].set_title("PID values")
-        ax[1].legend()
+            #display the pid parameter
+            # add text box for the statistics
+            stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nDecay factor = %.1f\nUnit:%i'%(self.pid_p, self.pid_i, self.pid_d, self.exp_decay_factor, unit_index))
+            bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5)
+            ax[0].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax[0].transAxes, horizontalalignment='right')
+            ax[0].set(ylim=(0, 6))
+            ax[0].legend()
 
-        #plot control signal
-        ax[2].plot(self.load_cell_force_times, self.tor_cmds)
-        ax[2].set(xlabel='time (s)', ylabel='torque command (N/mm)')
-        ax[2].set_title("Control Signal")
+            #plot pid terms
+            ax[1].plot(self.load_cell_force_times, self.p_terms[unit_index -1], label="p term")
+            ax[1].plot(self.load_cell_force_times, self.i_terms[unit_index -1], label="i term")
+            ax[1].plot(self.load_cell_force_times, self.d_terms[unit_index -1], label="d term")
+            ax[1].set(xlabel='time (s)', ylabel='torque command (N/mm)')
+            ax[1].set_title("PID values")
+            ax[1].legend()
 
-        #mng = plt.get_current_fig_manager()
-        #mng.full_screen_toggle()
+            #plot control signal
+            ax[2].plot(self.load_cell_force_times, self.tor_cmds[unit_index -1])
+            ax[2].set(xlabel='time (s)', ylabel='torque command (N/mm)')
+            ax[2].set_title("Control Signal")
 
-        figure = plt.gcf() # get current figure
-        figure.set_size_inches(8, 6)
+            #mng = plt.get_current_fig_manager()
+            #mng.full_screen_toggle()
+
+            figure = plt.gcf() # get current figure
+            figure.set_size_inches(8, 6)
 
 
-        save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_test_fig/'
-        file_name = plot_name + '_kp%.1f_ki%.1f_kd%.1f_unit%i'%(self.pid_p, self.pid_i, self.pid_d, self.testing_unit_index)
-        fig.savefig(save_dir + file_name + ".png", dpi=100)
-        plt.show()
+            save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/multi_units_transient_response_test_fig/'
+            file_name = plot_name + '_kp%.1f_ki%.1f_kd%.1f_unit%i'%(self.pid_p, self.pid_i, self.pid_d, unit_index)
+            fig.savefig(save_dir + file_name + ".png", dpi=100)
+            plt.show()
 
 
 # def get_args():
