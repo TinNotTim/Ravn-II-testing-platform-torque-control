@@ -61,7 +61,7 @@ class torque_transient_response_tester():
         self.disturbance_test_time = 30 #unit: second
 
         #parameters for generate sine and cosine wave
-        self.num_points = 50
+        self.num_points = 100
         self.amplitude = 2 
 
         #variable for load cell reading
@@ -381,9 +381,11 @@ class torque_transient_response_tester():
 
     #have the raven run random trajectory, and let force unit output a sine wave torque, see how well it follows it
     #let the unit4 do cosine wave, and let unit5 sine wave
-    def multi_setpoints_sine_with_disturb(self):
-        self.setpoints[4] = self.gen_cosine_wave()
-        self.setpoints[5] = self.gen_sine_wave()
+    def multi_setpoints_wave_with_disturb(self):
+        self.setpoints[4 -1] = self.gen_cosine_wave()
+        self.setpoints[5 -1] = self.gen_sine_wave()
+        #print("For debug - setpoints[4-1] =", self.setpoints[4-1])
+        #print("For debug - setpoints[5-1] =", self.setpoints[5-1])
 
         #pretension the string
         self.pretension()
@@ -479,8 +481,10 @@ if __name__ == '__main__':
 
         tester = torque_transient_response_tester()
         #tester.plotter() 
+        tester.pretension()
         #tester.step_response()
         #tester.multi_setpoints()
         #tester.multi_setpoints_sine()
         #tester.disturbance_test()
-        tester.multi_setpoints_sine_with_disturb()
+        #tester.multi_setpoints_sine_with_disturb()
+        tester.multi_setpoints_wave_with_disturb()

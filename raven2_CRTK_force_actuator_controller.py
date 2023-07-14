@@ -163,7 +163,7 @@ class raven2_crtk_force_controller():
         # TODO end
         # solution = minimize(self.objective, np.random.rand(6), bounds=bounds)
         self.tor_cmd[1:] = solution.x
-        #print("Solution: ", solution.x)  # [Test] Print the solution
+        print("Solution: ", solution.x)  # [Test] Print the solution
         
         if self.y_force_only:
             self.force_d_static[0] = 0
