@@ -421,7 +421,7 @@ class torque_transient_response_tester():
     def plotter(self, plot_name="test"):
 
         for unit_index in self.testing_unit_indices:
-            fig, ax = plt.subplots(3)
+            fig, ax = plt.subplots(3, figsize = (10, 15))
             fig.suptitle(plot_name)
 
             #plot setpoints, load cell readings and pid terms in first graph
