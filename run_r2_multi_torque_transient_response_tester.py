@@ -35,6 +35,7 @@ import argparse
 from raven2_CRTK_torque_controller_FB import raven2_crtk_torque_controller
 #from run_r2_multi_load_cell_force_pub import exp_decay_factor
 import copy
+import json
 
 class torque_transient_response_tester():
 
@@ -46,7 +47,8 @@ class torque_transient_response_tester():
         self.testing_unit_index = None
         self.pretension_force = 1 #unit: N
         self.cur_setpoint = np.zeros(6) #unit: N
-        self.setpoints = [[],[],[],[],[],[]] #for plotting 
+        self.setpoints = [[],[],[],[],[],[]]  #for control
+        self.setpoints_plot = [[],[],[],[],[],[]] #for plotting 
         
 
         #parameters for step_response()
@@ -131,10 +133,11 @@ class torque_transient_response_tester():
                 #TODO end
 
                 #TODO:save current setpoint in the plotting list during the recording period
-                self.setpoints[unit_index - 1].append(self.cur_setpoint[unit_index - 1])
+                self.setpoints_plot[unit_index - 1].append(self.cur_setpoint[unit_index - 1])
                 #TODO end
 
                 #TODO: save P, I and D term in separated plotting list during the recording period
+                #print("For debug - p_terms = ", self.p_terms, type(self.p_terms))
                 self.p_terms[unit_index - 1].append(self.cur_p_term[unit_index - 1])
                 self.i_terms[unit_index - 1].append(self.cur_i_term[unit_index - 1])
                 self.d_terms[unit_index - 1].append(self.cur_d_term[unit_index - 1])
@@ -404,19 +407,56 @@ class torque_transient_response_tester():
             for unit_index in self.testing_unit_indices:
                 desired_force[unit_index -1] = self.setpoints[unit_index -1][i]
             self.pub_force_cmd(desired_force)
-            rospy.sleep(1.)
+            rospy.sleep(0.1)
 
         #stop recording 
         rospy.loginfo("Stop recording load cell reading")
         self.load_cell_start_record = False
 
         #plot the load cell force
-        self.plotter("multi_setpoints_wave_with_disturb")
+        test_name = "multi_setpoints_wave_with_disturb"
+        self.plotter(test_name)
+        self.data_logger(test_name)
 
 
 
+    #write a function to save current testing info to a txt file
+    def data_logger(self, test_name="test"):
 
+        save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/multi_units_transient_response_test_data/'
+        file_name = save_dir + test_name + '_kp%.1f_ki%.1f_kd%.1f'%(self.pid_p, self.pid_i, self.pid_d) + ".json"
         
+        # np.savetxt(file_name, self.testing_unit_indices, header='testing_unit_indices=')
+        # np.savetxt(file_name, self.setpoints, header='setpoints=')
+        # np.savetxt(file_name, self.load_cell_forces, header='load_cell_forces=')
+        # np.savetxt(file_name, self.load_cell_force_times, header='load_cell_force_times=')
+        # np.savetxt(file_name, self.tor_cmds, header='tor_cmds=')
+        # np.savetxt(file_name, self.p_terms, header='p_terms=')
+        # np.savetxt(file_name, self.i_terms, header='i_terms=')
+        # np.savetxt(file_name, self.d_terms, header='d_terms=')
+        # np.savetxt(file_name, [self.pid_p], header='pid_p=')
+        # np.savetxt(file_name, [self.pid_i], header='pid_i=')
+        # np.savetxt(file_name, [self.pid_d], header='pid_d=')
+        # np.savetxt(file_name, [self.exp_decay_factor], header='exp_decay_factor=')
+
+        data = {
+        'testing_unit_indices':self.testing_unit_indices,
+        'setpoints':self.setpoints,
+        'load_cell_forces':self.load_cell_forces,
+        'load_cell_force_times':self.load_cell_force_times,
+        'tor_cmds':self.tor_cmds,
+        'p_terms':self.p_terms,
+        'i_terms':self.i_terms,
+        'd_terms':self.d_terms,
+        'pid_p':[self.pid_p],
+        'pid_i':[self.pid_i],
+        'pid_d':[self.pid_d],
+        'exp_decay_factor':self.exp_decay_factor
+        }
+
+        with open(file_name,'w') as f:
+        	json.dump(data,f)
+
 
     def plotter(self, plot_name="test"):
 
@@ -425,7 +465,9 @@ class torque_transient_response_tester():
             fig.suptitle(plot_name)
 
             #plot setpoints, load cell readings and pid terms in first graph
-            ax[0].plot(self.load_cell_force_times, self.setpoints[unit_index -1], label="setpoint")
+            #print("For debug - load_cell_force_times", self.load_cell_force_times, len(self.load_cell_force_times))
+            #print("For debug - setpoints[unit_index -1]", self.setpoints_plot[unit_index -1], len(self.setpoints_plot[unit_index -1]))
+            ax[0].plot(self.load_cell_force_times, self.setpoints_plot[unit_index -1], label="setpoint")
             ax[0].plot(self.load_cell_force_times, self.load_cell_forces[unit_index -1], label="load cell force")
             ax[0].set(xlabel='time (s)', ylabel='force reading (N)')
             ax[0].set_title("Output signal")
@@ -454,13 +496,13 @@ class torque_transient_response_tester():
             #mng = plt.get_current_fig_manager()
             #mng.full_screen_toggle()
 
-            figure = plt.gcf() # get current figure
-            figure.set_size_inches(8, 6)
+            # figure = plt.gcf() # get current figure
+            # figure.set_size_inches(8, 6)
 
 
             save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/multi_units_transient_response_test_fig/'
             file_name = plot_name + '_kp%.1f_ki%.1f_kd%.1f_unit%i'%(self.pid_p, self.pid_i, self.pid_d, unit_index)
-            fig.savefig(save_dir + file_name + ".png", dpi=100)
+            fig.savefig(save_dir + file_name + ".png")
             plt.show()
 
 
@@ -477,11 +519,12 @@ if __name__ == '__main__':
         rospy.loginfo("Node is created")
 
         tester = torque_transient_response_tester()
-        tester.plotter() 
+        #tester.plotter()
+        #tester.data_logger()
         #tester.pretension()
         #tester.step_response()
         #tester.multi_setpoints()
         #tester.multi_setpoints_sine()
         #tester.disturbance_test()
         #tester.multi_setpoints_sine_with_disturb()
-        #tester.multi_setpoints_wave_with_disturb()
+        tester.multi_setpoints_wave_with_disturb()

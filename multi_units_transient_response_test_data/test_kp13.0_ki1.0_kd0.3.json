@@ -1,0 +1,1 @@
+{"d_terms": [[], [], [], [], [], []], "load_cell_forces": [[], [], [], [], [], []], "testing_unit_indices": [4, 5], "tor_cmds": [[], [], [], [], [], []], "i_terms": [[], [], [], [], [], []], "pid_p": [13], "exp_decay_factor": 0.1, "load_cell_force_times": [], "pid_d": [0.3], "pid_i": [1.0], "p_terms": [[], [], [], [], [], []], "setpoints": [[], [], [], [], [], []]}
