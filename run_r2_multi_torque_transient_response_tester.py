@@ -415,8 +415,25 @@ class torque_transient_response_tester():
 
 
 
+    #write a function to save current testing info to a txt file
+    def data_logger(self, test_name="test"):
 
+        save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/multi_units_transient_response_test_data/'
+        file_name = save_dir + test_name + '_kp%.1f_ki%.1f_kd%.1f'%(self.pid_p, self.pid_i, self.pid_d) + ".txt"
         
+        np.savetxt(file_name, self.testing_unit_indices, header='testing_unit_indices=')
+        np.savetxt(file_name, self.setpoints, header='setpoints=')
+        np.savetxt(file_name, self.load_cell_forces, header='load_cell_forces=')
+        np.savetxt(file_name, self.load_cell_force_times, header='load_cell_force_times=')
+        np.savetxt(file_name, self.tor_cmds, header='tor_cmds=')
+        np.savetxt(file_name, self.p_terms, header='p_terms=')
+        np.savetxt(file_name, self.i_terms, header='i_terms=')
+        np.savetxt(file_name, self.d_terms, header='d_terms=')
+        np.savetxt(file_name, self.pid_p, header='pid_p=')
+        np.savetxt(file_name, self.pid_i, header='pid_i=')
+        np.savetxt(file_name, self.pid_d, header='pid_d=')
+        np.savetxt(file_name, self.exp_decay_factor, header='exp_decay_factor=')
+
 
     def plotter(self, plot_name="test"):
 
