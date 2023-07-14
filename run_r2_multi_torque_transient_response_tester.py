@@ -421,7 +421,7 @@ class torque_transient_response_tester():
     def plotter(self, plot_name="test"):
 
         for unit_index in self.testing_unit_indices:
-            fig, ax = plt.subplots(3)
+            fig, ax = plt.subplots(3, figsize=(15,15))
             fig.suptitle(plot_name)
 
             #plot setpoints, load cell readings and pid terms in first graph
@@ -477,11 +477,11 @@ if __name__ == '__main__':
         rospy.loginfo("Node is created")
 
         tester = torque_transient_response_tester()
-        #tester.plotter() 
-        tester.pretension()
+        tester.plotter() 
+        #tester.pretension()
         #tester.step_response()
         #tester.multi_setpoints()
         #tester.multi_setpoints_sine()
         #tester.disturbance_test()
         #tester.multi_setpoints_sine_with_disturb()
-        tester.multi_setpoints_wave_with_disturb()
+        #tester.multi_setpoints_wave_with_disturb()
