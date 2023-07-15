@@ -434,8 +434,9 @@ if __name__ == '__main__':
 
         tester = torque_transient_response_tester()
         #tester.plotter() 
+        tester.pretension()
         #tester.step_response()
         #tester.multi_setpoints()
         #tester.multi_setpoints_sine()
         #tester.disturbance_test()
-        tester.multi_setpoints_sine_with_disturb()
+        # tester.multi_setpoints_sine_with_disturb()

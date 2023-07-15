@@ -63,8 +63,9 @@ class torque_transient_response_tester():
         self.disturbance_test_time = 30 #unit: second
 
         #parameters for generate sine and cosine wave
-        self.num_points = 100
+        self.num_points = 2000
         self.amplitude = 2 
+        self.total_time = 100.0 #unit: second
 
         #variable for load cell reading
         self.load_cell_force = np.zeros(6) #unit N
@@ -154,11 +155,13 @@ class torque_transient_response_tester():
     
     def __callback_actual_torque_cmd(self, msg):
         #the torque cmd will be store in msg.position: [0, tor1, tor2, tor3, tor4, tor5, tor6, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        self.cur_tor_cmd[:] = msg.position[1:7]
+        self.cur_tor_cmd[:] = msg.position[0:6]
+        # print("For debug - self.cur_tor_cmd = ", self.cur_tor_cmd)
     
 
     
     def __callback_pid_term_val(self, msg):
+        pid_term_for_units = []
         for pose in msg.poses[1:7]:
             pid_term_for_units.append(pose.position)
 
@@ -197,7 +200,7 @@ class torque_transient_response_tester():
         sine_wave_setpoints = offset + self.amplitude * np.sin(t)
         #print("For debug - t = ", t)
         #print("For debug - setpoints = ", sine_wave_setpoints)
-        return sine_wave_setpoints
+        return sine_wave_setpoints.tolist()
     
     def gen_cosine_wave(self):
         #define a discrete sine wave 
@@ -214,7 +217,7 @@ class torque_transient_response_tester():
         cosine_wave_setpoints = offset + self.amplitude * np.cos(t)
         #print("For debug - t = ", t)
         #print("For debug - setpoints = ", cosine_wave_setpoints)
-        return cosine_wave_setpoints
+        return cosine_wave_setpoints.tolist()
 
     def pretension(self):
         rospy.loginfo("Pretension start...")
@@ -407,16 +410,20 @@ class torque_transient_response_tester():
             for unit_index in self.testing_unit_indices:
                 desired_force[unit_index -1] = self.setpoints[unit_index -1][i]
             self.pub_force_cmd(desired_force)
-            rospy.sleep(0.1)
+            rospy.sleep(self.total_time/self.num_points)
 
         #stop recording 
         rospy.loginfo("Stop recording load cell reading")
         self.load_cell_start_record = False
 
         #plot the load cell force
-        test_name = "multi_setpoints_wave_with_disturb"
+        test_name = "multi_setpoints_wave_with_disturb_no_wire_guide"
         self.plotter(test_name)
         self.data_logger(test_name)
+
+        #release the tension
+        rospy.loginfo("testing done, release tension to 1 N")
+        self.pretension()
 
 
 
@@ -453,9 +460,11 @@ class torque_transient_response_tester():
         'pid_d':[self.pid_d],
         'exp_decay_factor':self.exp_decay_factor
         }
+        # print("For debug - data = ", data)
 
         with open(file_name,'w') as f:
         	json.dump(data,f)
+        f.close()
 
 
     def plotter(self, plot_name="test"):
@@ -474,7 +483,7 @@ class torque_transient_response_tester():
 
             #display the pid parameter
             # add text box for the statistics
-            stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nDecay factor = %.1f\nUnit:%i'%(self.pid_p, self.pid_i, self.pid_d, self.exp_decay_factor, unit_index))
+            stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nDecay factor = %.1f\nUnit:%i\nSteps:%i'%(self.pid_p, self.pid_i, self.pid_d, self.exp_decay_factor, unit_index, self.num_points))
             bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5)
             ax[0].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax[0].transAxes, horizontalalignment='right')
             ax[0].set(ylim=(0, 6))
@@ -501,7 +510,7 @@ class torque_transient_response_tester():
 
 
             save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/multi_units_transient_response_test_fig/'
-            file_name = plot_name + '_kp%.1f_ki%.1f_kd%.1f_unit%i'%(self.pid_p, self.pid_i, self.pid_d, unit_index)
+            file_name = plot_name + '_kp%.1f_ki%.1f_kd%.1f_unit%i_step%i'%(self.pid_p, self.pid_i, self.pid_d, unit_index, self.num_points)
             fig.savefig(save_dir + file_name + ".png")
             plt.show()
 
@@ -521,7 +530,7 @@ if __name__ == '__main__':
         tester = torque_transient_response_tester()
         #tester.plotter()
         #tester.data_logger()
-        #tester.pretension()
+        # tester.pretension()
         #tester.step_response()
         #tester.multi_setpoints()
         #tester.multi_setpoints_sine()

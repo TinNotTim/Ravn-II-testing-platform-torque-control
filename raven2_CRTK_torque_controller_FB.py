@@ -83,15 +83,21 @@ class raven2_crtk_torque_controller():
 
         #------------------------------
         #parameters for PID controller
-        self.force_pid_p = 13# p factor of force PID feedback control using load cell
-        self.force_pid_i = 1.0
-        self.force_pid_d = 0.3 #0.075
+        self.force_pid_p = 0#10#13# p factor of force PID feedback control using load cell
+        self.force_pid_i = 0.2#1.0
+        self.force_pid_d = 1#0.3 
+        #parameter for threshold
+        self.p_thresh = 4.0
+        self.d_thresh = 2.0
+        self.d_clip_thresh = 1000.0
         # Anti windup        
         self.windupMax = 0
         # default value
         self.e_old = np.zeros(16)
         self.e_sum = np.zeros(16)
         self.e_cur = np.zeros(16)
+        self.e_window_size = 10
+        self.e_window = [0.0] * self.e_window_size
         self.t_cur = time.time()
         self.t_old = time.time()
         #------------------------------
@@ -302,13 +308,22 @@ class raven2_crtk_torque_controller():
             self.e_sum[i] = self.e_sum[i] + self.e_old[i]
             self.e_old[i] = self.e_cur[i]
             self.e_cur[i] = force_command[i] - self.load_cell_force[i]
+            #update the error window
+            self.e_window.append(self.e_cur[i])
+            self.e_window = self.e_window[-self.e_window_size:]
             #calculate dt
             self.t_cur = time.time()
             dt = self.t_cur - self.t_old
             #calculate the P, I, and D term, include the error and gain
+            #create a threshold for p term
             p_term = self.force_pid_p * self.e_cur[i]
+            if abs(p_term) < self.p_thresh:
+                p_term = 0.0            
             i_term = self.force_pid_i * (self.e_sum[i] + self.e_cur[i])
-            d_term = self.force_pid_d * (self.e_cur[i] - self.e_old[i])/dt
+            d_term = np.clip(self.force_pid_d * (self.compute_average_gradient(self.e_window) / dt), -self.d_clip_thresh, self.d_clip_thresh)
+            # print("For debug - d_term = ", d_term)
+            # if abs(d_term) < self.d_thresh:
+            #     d_term = 0.0
             #update the P,I, and D terms to the cur_pid_terms list
             self.cur_pid_terms.poses[i].position.x = p_term
             self.cur_pid_terms.poses[i].position.y = i_term
@@ -339,6 +354,12 @@ class raven2_crtk_torque_controller():
         print(cmd_comp.astype(int))
         #print("e_sum = ",self.e_sum)
         return 0
+
+    def compute_average_gradient(self, numbers):
+        differences = [numbers[i + 1] - numbers[i] for i in range(len(numbers) - 1)]
+        sum_of_differences = sum(differences)
+        average_gradient = sum_of_differences / len(differences)
+        return average_gradient
 
     def __check_max_torque_command(self, torque_command):
         diff = self.max_torque - np.abs(torque_command)
