@@ -83,13 +83,14 @@ class raven2_crtk_torque_controller():
 
         #------------------------------
         #parameters for PID controller
-        self.force_pid_p = 0#10#13# p factor of force PID feedback control using load cell
+        self.force_pid_p = 3#10#13# p factor of force PID feedback control using load cell
         self.force_pid_i = 0.2#1.0
-        self.force_pid_d = 1#0.3 
+        self.force_pid_d = 1 
         #parameter for threshold
-        self.p_thresh = 4.0
-        self.d_thresh = 2.0
-        self.d_clip_thresh = 1000.0
+        self.p_thresh = 1.0
+        self.p_clip_thresh = 30.0
+        self.d_thresh = 3.0
+        self.d_clip_thresh = 30.0
         # Anti windup        
         self.windupMax = 0
         # default value
@@ -316,15 +317,18 @@ class raven2_crtk_torque_controller():
             dt = self.t_cur - self.t_old
             #calculate the P, I, and D term, include the error and gain
             #create a threshold for p term
-            p_term = self.force_pid_p * self.e_cur[i]
+            # p_term = self.force_pid_p * self.e_cur[i]
+            p_term = np.clip(np.sign(self.e_cur[i]) * ((self.force_pid_p * self.e_cur[i]) ** 2), -self.d_clip_thresh, self.d_clip_thresh)
             if abs(p_term) < self.p_thresh:
                 p_term = 0.0            
             i_term = self.force_pid_i * (self.e_sum[i] + self.e_cur[i])
-            d_term = np.clip(self.force_pid_d * (self.compute_average_gradient(self.e_window) / dt), -self.d_clip_thresh, self.d_clip_thresh)
+            e_grad = self.compute_average_gradient(self.e_window)
+            # d_term = np.clip(self.force_pid_d * np.sign(e_grad)*(e_grad / dt)**2, -self.d_clip_thresh, self.d_clip_thresh)
+            d_term = np.clip(self.force_pid_d * e_grad / dt, -self.d_clip_thresh, self.d_clip_thresh)
             # print("For debug - d_term = ", d_term)
-            # if abs(d_term) < self.d_thresh:
-            #     d_term = 0.0
-            #update the P,I, and D terms to the cur_pid_terms list
+            if abs(d_term) < self.d_thresh:
+                d_term = 0.0
+            # update the P,I, and D terms to the cur_pid_terms list
             self.cur_pid_terms.poses[i].position.x = p_term
             self.cur_pid_terms.poses[i].position.y = i_term
             self.cur_pid_terms.poses[i].position.z = d_term

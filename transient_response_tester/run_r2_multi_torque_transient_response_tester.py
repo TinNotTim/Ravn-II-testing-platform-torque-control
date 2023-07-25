@@ -32,10 +32,15 @@ import sensor_msgs.msg
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
+
+# adding torque controller folder to the system path
+sys.path.append('/home/supernova/raven2_CRTK_Python_controller/torque_controller')
 from raven2_CRTK_torque_controller_FB import raven2_crtk_torque_controller
 #from run_r2_multi_load_cell_force_pub import exp_decay_factor
 import copy
 import json
+
+
 
 class torque_transient_response_tester():
 
@@ -430,7 +435,7 @@ class torque_transient_response_tester():
     #write a function to save current testing info to a txt file
     def data_logger(self, test_name="test"):
 
-        save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/multi_units_transient_response_test_data/'
+        save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_tester/multi_units_transient_response_test_data/'
         file_name = save_dir + test_name + '_kp%.1f_ki%.1f_kd%.1f'%(self.pid_p, self.pid_i, self.pid_d) + ".json"
         
         # np.savetxt(file_name, self.testing_unit_indices, header='testing_unit_indices=')
@@ -509,7 +514,7 @@ class torque_transient_response_tester():
             # figure.set_size_inches(8, 6)
 
 
-            save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/multi_units_transient_response_test_fig/'
+            save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_tester/multi_units_transient_response_test_fig/'
             file_name = plot_name + '_kp%.1f_ki%.1f_kd%.1f_unit%i_step%i'%(self.pid_p, self.pid_i, self.pid_d, unit_index, self.num_points)
             fig.savefig(save_dir + file_name + ".png")
             plt.show()
