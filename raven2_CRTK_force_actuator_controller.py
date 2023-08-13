@@ -103,7 +103,7 @@ class raven2_crtk_force_controller():
         self.load_cell_force_desired = np.zeros(7) # unit: N, [0] not used, [1] for the reading of force unit 1
         
         #this is the actual load cell force reading for calculating the applied force
-        self.load_cell_force_cur = np.zeros(7) # unit: N, this value will be updated by callback function, [0] not used, [1] for the reading of force unit 1
+        self.load_cell_force_cur = np.zeros(7) #np.array([0, 0, 0, 0, 0, 0, 0]) # unit: N, this value will be updated by callback function, [0] not used, [1] for the reading of force unit 1
 
         self.force_max = 5.0 * np.ones(7)  # [0] not used, [1] for motor 1 
         self.force_min =  -5.0 * np.ones(7)  # [0] not used, [1] for motor 1 
@@ -138,7 +138,7 @@ class raven2_crtk_force_controller():
         # create a subscriber to get the end effector position
         self.__subscriber_ravenstate = rospy.Subscriber('ravenstate', raven_state, self.__callback_ravenstate)
         #create a subscriber to get the current load cell force reading
-        self.__subscriber_load_cell_reading = rospy.Subscriber('load_cell_forces', sensor_msgs.msg.JointState, self.__callback_load_cell_force)
+        self.__subscriber_load_cell_reading = rospy.Subscriber('/load_cell_forces', sensor_msgs.msg.JointState, self.__callback_load_cell_readings)
 
         return None
 
@@ -147,7 +147,7 @@ class raven2_crtk_force_controller():
         self.force_d[1] = msg.position[1]
         self.force_d[2] = msg.position[2]
         self.new_force_cmd = True
-        #print('force_cmd received')
+        # print('force_cmd received')
         return None
     
     def __callback_ravenstate(self, msg):
@@ -155,10 +155,12 @@ class raven2_crtk_force_controller():
         end_effector_pos_raw = np.array(msg.pos[0:3]) #unit: um
         #print("For debug - end_effector_pos_raw = ", end_effector_pos_raw, np.shape(end_effector_pos_raw))
         self.end_effector_loc = end_effector_pos_raw / 1000.0 #unit: mm
-        #print("For debug - self.end_effector_loc = ", self.end_effector_loc)
+        # print("For debug - self.end_effector_loc = ", self.end_effector_loc)
 
-    def __callback_load_cell_force(self, msg):
+    def __callback_load_cell_readings(self, msg):
         self.load_cell_force_cur[1:] = msg.position[:]
+        # print("For debug - msg.position: ", msg.position)
+        # print("For debug - self.load_cell_force_cur: ", self.load_cell_force_cur)
 
         return None
 
@@ -185,7 +187,7 @@ class raven2_crtk_force_controller():
         # print("For debug - cosine_val = ", cosine_val, type(cosine_val))
 
         #calculate the angle in radient for each motor unit
-        self.cable_load_cell_angles = np.arccos(cosine_val)
+        self.cable_load_cell_angles = np.arccos(cosine_val) #the angle value is not reliable, since the sign might be reverse
         # print("For debug - angles = ", self.cable_load_cell_angles)
         
         
@@ -206,7 +208,8 @@ class raven2_crtk_force_controller():
         self.compute_motor_dir()
         self.compute_cable_angles()
         # bounds = [(2.2, 5.0)] * 6  # No bounds on the variables
-        bounds = [(0.5, 6.0)] * 6 #unit: N
+        # bounds = [(0.5, 6.0)] * 6 #unit: N
+        bounds = [(1.2, 6.0)] * 6 #unit: N
 
         self.force_d_static[:] =  self.force_d[:]
         #TODO:add a mechanism that use the previous result as initial guess
@@ -217,14 +220,15 @@ class raven2_crtk_force_controller():
         # solution = minimize(self.objective, np.random.rand(6), bounds=bounds)
         
         # this is the desired tension on each cable based on the motor_dir and force_d at that time
-        self.tension_desired[1:] = solution # unit: N
+        # print("Solution: ", solution.x)  # [Test] Print the solution
+        self.tension_desired[1:] = solution.x # unit: N
         # print("Solution: ", solution.x)  # [Test] Print the solution
 
         #based on desired tension and cable angle, canculate the desired load cell force reading
         self.load_cell_force_desired = self.tension_desired * np.cos(self.cable_load_cell_angles) 
 
         #convert the desired load cell force to torque command
-        # the torque command will be converted desired load cell force again in torque controller
+        # (TODO: correct the variable name)the torque command will be converted desired load cell force again in torque controller
         self.tor_cmd[1:7] = self.load_cell_force_desired[1:7] * 10 #unit: N/mm
         
         
@@ -239,7 +243,7 @@ class raven2_crtk_force_controller():
             else:
                 self.tor_cmd[5] = bounds[0][0]*10
                 self.tor_cmd[4] = int(-10* self.force_d_static[1] + bounds[0][0]*10)
-            #print(self.tor_cmd)
+            # print("tor_cmd = ", self.tor_cmd)
 
         #TODO:publish the list of torque command to /torque_cmd topic
         #self.r2_tor_ctl.pub_torque_command_with_comp(self.tor_cmd) #original
@@ -249,16 +253,21 @@ class raven2_crtk_force_controller():
         #TODO end
         
         # Applied force calculation
-        load_cell_force_cur_static = self.load_cell_force_cur #fix the value, in case any update from callback function change the value
+        load_cell_force_cur_static = self.load_cell_force_cur * 1 #fix the value, in case any update from callback function change the value
+        # print("For debug - load_cell_force_cur_static:", load_cell_force_cur_static)
         #calculate the current cable tension using current cable angle
         cable_tension_cur = load_cell_force_cur_static[1:7] / np.cos(self.cable_load_cell_angles[1:7]) #unit: N
-        tension_vec = np.zeros(6,1)
+        # print("For debug - cable_tension_cur:", cable_tension_cur)
+        tension_vec = np.zeros((6,1))
+        # print("For debug - tension_vec:", tension_vec)
         tension_vec[:,0] =  cable_tension_cur.T #unit: N
+        # print("For debug - tension_vec:", tension_vec)
         #calculate the applied force using the current load cell reading
         force_applied = np.sum(self.motor_dir[1:] * tension_vec, axis = 0)
         #prepare message for publish
         msg = sensor_msgs.msg.JointState()
         msg.header.stamp = rospy.Time.now()
+        msg.position = np.zeros(6)
         if self.y_force_only:
             #if only testing 1 direction, just use the difference between two load cell force as applied force
             msg.position[1] = load_cell_force_cur_static[5] - load_cell_force_cur_static[4]
