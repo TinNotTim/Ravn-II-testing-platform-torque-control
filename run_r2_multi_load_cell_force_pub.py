@@ -12,14 +12,12 @@ buffer_clear_num = 3000 # this is to skip the readings at beginning to clear buf
 calibration_list = []
 
 # linear calibration factors
-a_1 = 2.163318232246724780e-05
-a_2 = 2.163318232246724780e-05
-a_3 = 2.163318232246724780e-05
-#a_4 = 2.587814952673832719e-05
+a_1 = -6.534670690287095535e-06 #GUANG_CE_4
+a_2 = 6.578595718356571149e-06 #MAVIN_NA1
+a_3 = -6.717327973891286796e-06 #GUANG_CE_1
 a_4 = 6.950519714026019931e-06 #calt_dyx_306
-#a_5 = 2.163318232246724780e-05
 a_5 = 6.96586894668381e-06 #daysensor_dyx_306
-a_6 = 2.163318232246724780e-05
+a_6 = -7.304287888493677691e-06 #GUANG_CE_3
 
 
 a = [float(a_1), float(a_2), float(a_3), float(a_4), float(a_5), float(a_6)]
@@ -50,6 +48,7 @@ while not rospy.is_shutdown():
 
     # publish raw reading
     raw_readings = [int(reading_1), int(reading_2), int(reading_3), int(reading_4), int(reading_5), int(reading_6)]
+    # print("For debug - raw_readings = ", raw_readings)
     
     if calibration:
         cali_count = 0
@@ -75,11 +74,11 @@ while not rospy.is_shutdown():
     force_cur = np.array([raw_readings[0]*a[0] + b[0], raw_readings[1]*a[1] + b[1], raw_readings[2]*a[2] + b[2], raw_readings[3]*a[3] + b[3], raw_readings[4]*a[4] + b[4], raw_readings[5]*a[5] + b[5]])
 
     # for only one motor test -------------------
-    force_cur[0] = 0
-    force_cur[1] = 0
-    force_cur[2] = 0
-    #force_cur[3] = 0
-    force_cur[5] = 0
+    # force_cur[0] = 0
+    # force_cur[1] = 0
+    # force_cur[2] = 0
+    # #force_cur[3] = 0
+    # force_cur[5] = 0
     # for only one motor test -------------------
 
 

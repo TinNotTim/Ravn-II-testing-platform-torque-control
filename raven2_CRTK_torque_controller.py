@@ -179,11 +179,12 @@ class raven2_crtk_torque_controller():
         if (self.time_last_pub_move != -1.0) & (interval_pub < self.min_interval_move):
             time.sleep(self.min_interval_move-interval_pub) # If the time interval is too short, wait util do not exceed the max rate
             #print('time sleep:' + str(self.min_interval_move-interval_pub)) #[debug]
+        print("For debug - msg = ", msg.position[:])
         self.__publisher_servo_jp.publish(msg)
         self.time_last_pub_move = time.time()
         self.pub_count_motion += 1
 
-        #print('Command pub count: ' + str(self.pub_count_motion) + ' | msg: ' + str(joint_command)) # [debug]
+        # print('Command pub count: ' + str(self.pub_count_motion) + ' | msg: ' + str(joint_command)) # [debug]
         return 0
 
 
@@ -213,11 +214,11 @@ class raven2_crtk_torque_controller():
                 control_torque = target_torque + np.sign(motor_velocity) * coulomb_offset
                 self.vel_last_comp_val[i] = motor_velocity
                 self.vel_last_comp_time[i] = time.time()
-                print('1111111111111111111111111111111111')
+                # print('1111111111111111111111111111111111')
 
             elif np.abs(motor_velocity) > 0 and  time.time() - self.vel_last_comp_time[i] < self.vel_lock: 
                 control_torque = target_torque + np.sign(self.vel_last_comp_val[i]) * coulomb_offset
-                print('2222222222222222222222222222222222')
+                # print('2222222222222222222222222222222222')
 
             else: #static
                 #if motor_velocity > 0:
@@ -227,7 +228,7 @@ class raven2_crtk_torque_controller():
                     #control_torque = target_torque - coulomb_offset
                 #else:
                 a = 1
-                print('333333333333333333333333333333333')
+                # print('333333333333333333333333333333333')
                 if a ==1:
                     if time.time() - self.load_cell_last_comp_time[i] >= self.load_cell_lock:
                         if self.load_cell_slope[i] > 600:  # moving toward the motor
@@ -252,7 +253,7 @@ class raven2_crtk_torque_controller():
             cmd_comp[i] =  control_torque
 
         self.pub_torque_command(cmd_comp.astype(int))
-        print(cmd_comp.astype(int))
+        print("For debug - cmd_comp = ", cmd_comp.astype(int))
         return 0
 
     def __check_max_torque_command(self, torque_command):
