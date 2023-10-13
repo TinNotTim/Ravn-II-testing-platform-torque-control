@@ -12,12 +12,12 @@ buffer_clear_num = 3000 # this is to skip the readings at beginning to clear buf
 calibration_list = []
 
 # linear calibration factors
-a_1 = -6.534670690287095535e-06 #GUANG_CE_4
+a_1 = 6.534670690287095535e-06 #GUANG_CE_4
 a_2 = 6.578595718356571149e-06 #MAVIN_NA1
-a_3 = -6.717327973891286796e-06 #GUANG_CE_1
+a_3 = 6.717327973891286796e-06 #GUANG_CE_1
 a_4 = 6.950519714026019931e-06 #calt_dyx_306
 a_5 = 6.96586894668381e-06 #daysensor_dyx_306
-a_6 = -7.304287888493677691e-06 #GUANG_CE_3
+a_6 = 7.304287888493677691e-06 #GUANG_CE_3
 
 
 a = [float(a_1), float(a_2), float(a_3), float(a_4), float(a_5), float(a_6)]

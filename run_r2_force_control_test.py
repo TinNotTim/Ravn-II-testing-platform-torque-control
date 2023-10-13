@@ -41,9 +41,12 @@ def force_test():
 
     target_torques = np.zeros(7)  #assume these parameters are assignend by other higher controller 
     #the index here start's from 1-7
-    target_torques[1] = 30.0
-    # target_torques[4] = 30.0 
-    # target_torques[5] = 30.0
+    target_torques[1] = 20.0
+    target_torques[2] = 20.0
+    target_torques[3] = 20.0
+    target_torques[4] = 20.0 
+    target_torques[5] = 20.0
+    target_torques[6] = 20.0
 
     #create message for publishing
     tor_cmd_msg = sensor_msgs.msg.JointState()
