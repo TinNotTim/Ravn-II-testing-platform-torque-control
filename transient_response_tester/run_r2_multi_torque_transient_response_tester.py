@@ -48,7 +48,7 @@ class torque_transient_response_tester():
         #print("For debug - init")
         #general parameters
         #from 1 to 6, fill in the units for testing. only put in each unit once
-        self.testing_unit_indices = [4,5]
+        self.testing_unit_indices = [1,2,3,4,5,6]
         self.testing_unit_index = None
         self.pretension_force = 1 #unit: N
         self.cur_setpoint = np.zeros(6) #unit: N
@@ -235,7 +235,19 @@ class torque_transient_response_tester():
         self.pub_force_cmd(desired_force)
         #wait for 3 seconds
         rospy.sleep(3.)
-        rospy.loginfo("Pretension completed")      
+        rospy.loginfo("Pretension completed")  
+
+    #this function set all the testing unit to a specific force output
+    def set_tension(self, test_force):
+        rospy.loginfo("Set tension to %dN"%(test_force))
+        #create a zero array
+        desired_force = np.zeros(6)
+
+        for unit_index in self.testing_unit_indices:
+            desired_force[unit_index - 1] = test_force
+
+        self.pub_force_cmd(desired_force)
+
 
 
     # def step_response(self):
@@ -430,6 +442,41 @@ class torque_transient_response_tester():
         rospy.loginfo("testing done, release tension to 1 N")
         self.pretension()
 
+    #have all the force units output a constant force and hold for a certain amount of time 
+    #for debugging the hardware
+    def multi_static_performace_no_disturb(self, test_force ,test_time):
+
+        #pretension the string
+        self.pretension()
+
+        #start recording
+        rospy.loginfo("Start recording load cell reading")
+        self.start_time = time.time()
+        self.load_cell_start_record = True     
+
+        #wait for 1 seconds
+        rospy.sleep(1.)
+
+        #add on tension
+        self.set_tension(test_force)
+
+        #hold for a certain amount of time
+        rospy.sleep(test_time)
+
+        #stop recording 
+        rospy.loginfo("Stop recording load cell reading")
+        self.load_cell_start_record = False
+
+        #plot the load cell force
+        test_name = 'static_performance_%dN_%dsec'%(test_force,test_time)
+        self.plotter(test_name)
+        self.data_logger(test_name)
+
+        #release the tension
+        rospy.loginfo("testing done, release tension to 1 N")
+        self.pretension()
+
+
 
 
     #write a function to save current testing info to a txt file
@@ -493,6 +540,7 @@ class torque_transient_response_tester():
             ax[0].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax[0].transAxes, horizontalalignment='right')
             ax[0].set(ylim=(0, 6))
             ax[0].legend()
+            ax[0].grid()
 
             #plot pid terms
             ax[1].plot(self.load_cell_force_times, self.p_terms[unit_index -1], label="p term")
@@ -501,11 +549,13 @@ class torque_transient_response_tester():
             ax[1].set(xlabel='time (s)', ylabel='torque command (N/mm)')
             ax[1].set_title("PID values")
             ax[1].legend()
+            ax[1].grid()
 
             #plot control signal
             ax[2].plot(self.load_cell_force_times, self.tor_cmds[unit_index -1])
             ax[2].set(xlabel='time (s)', ylabel='torque command (N/mm)')
             ax[2].set_title("Control Signal")
+            ax[2].grid()
 
             #mng = plt.get_current_fig_manager()
             #mng.full_screen_toggle()
@@ -513,7 +563,7 @@ class torque_transient_response_tester():
             # figure = plt.gcf() # get current figure
             # figure.set_size_inches(8, 6)
 
-
+            
             save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_tester/multi_units_transient_response_test_fig/'
             file_name = plot_name + '_kp%.1f_ki%.1f_kd%.1f_unit%i_step%i'%(self.pid_p, self.pid_i, self.pid_d, unit_index, self.num_points)
             fig.savefig(save_dir + file_name + ".png")
@@ -540,5 +590,7 @@ if __name__ == '__main__':
         #tester.multi_setpoints()
         #tester.multi_setpoints_sine()
         #tester.disturbance_test()
-        #tester.multi_setpoints_sine_with_disturb()
-        tester.multi_setpoints_wave_with_disturb()
+
+        tester.multi_static_performace_no_disturb(2.0, 30.0) #output 2 N for 30 seconds
+        # tester.multi_setpoints_sine_with_disturb()
+        # tester.multi_setpoints_wave_with_disturb()
