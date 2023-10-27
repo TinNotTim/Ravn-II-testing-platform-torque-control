@@ -478,6 +478,42 @@ class torque_transient_response_tester():
         self.pretension()
 
 
+    #publish constant command, and record the loadcell reading 
+    #for debugging the loadcell reading
+    #be sure to set pid value to 0
+    def multi_loadcell_performace(self,test_time):
+
+        #pretension the string
+        self.pretension()
+
+        #start recording
+        rospy.loginfo("Start recording load cell reading")
+        self.start_time = time.time()
+        self.load_cell_start_record = True     
+
+        #wait for 1 seconds
+        rospy.sleep(1.)
+
+        # #add on tension
+        # self.set_tension(test_force)
+
+        #hold for a certain amount of time
+        rospy.sleep(test_time)
+
+        #stop recording 
+        rospy.loginfo("Stop recording load cell reading")
+        self.load_cell_start_record = False
+
+        #plot the load cell force
+        test_name = 'loadcell_performance_%dsec'%(test_time)
+        self.input_output_plotter(test_name)
+        self.data_logger(test_name)
+
+        #release the tension
+        rospy.loginfo("testing done")
+        self.pretension()
+
+
 
 
     #write a function to save current testing info to a txt file
@@ -574,23 +610,33 @@ class torque_transient_response_tester():
     def input_output_plotter(self, plot_name="test"):
 
     
-        fig, ax = plt.subplots(6, figsize=(15,15))
-        fig.suptitle(plot_name)
+        
         for unit_index in self.testing_unit_indices:
+            fig, ax = plt.subplots(2, figsize=(15,15))
+            fig.suptitle(plot_name)
             #plot the output, loadcell reading and error on the same plot
-            ax[unit_index-1].plot(self.load_cell_force_times, self.setpoints_plot[unit_index -1], label="setpoint")
-            ax[unit_index-1].plot(self.load_cell_force_times, self.load_cell_forces[unit_index -1], label="load cell force")
-            ax[unit_index-1].plot(self.load_cell_force_times, map(operator.sub, self.setpoints_plot[unit_index -1],self.load_cell_forces[unit_index -1]), label="error")
+            ax[0].plot(self.load_cell_force_times, self.setpoints_plot[unit_index -1], label="setpoint")
+            ax[0].plot(self.load_cell_force_times, self.load_cell_forces[unit_index -1], label="load cell force")
+            ax[0].plot(self.load_cell_force_times, map(operator.sub, self.setpoints_plot[unit_index -1],self.load_cell_forces[unit_index -1]), label="error")
             tor_que_reduce = np.array(self.tor_cmds[unit_index -1])/10
-            ax[unit_index-1].plot(self.load_cell_force_times, tor_que_reduce, label="torque cmd/10")
-            ax[unit_index-1].set(xlabel='time (s)', ylabel='force reading (N)')
-            ax[unit_index-1].set_title('unit %i'%(unit_index))
+            ax[0].plot(self.load_cell_force_times, tor_que_reduce, label="torque cmd/10")
+            ax[0].set(xlabel='time (s)', ylabel='force reading (N)') 
+            ax[0].legend()
+            ax[0].grid()
+            ax[0].set_title('unit %i'%(unit_index))
+
+
+            ax[1].plot(self.load_cell_force_times, self.p_terms[unit_index -1], label="p term")
+            ax[1].plot(self.load_cell_force_times, self.i_terms[unit_index -1], label="i term")
+            ax[1].plot(self.load_cell_force_times, self.d_terms[unit_index -1], label="d term")
+            ax[1].plot(self.load_cell_force_times, self.tor_cmds[unit_index -1], label="torque cmd")
+            ax[1].set(xlabel='time (s)', ylabel='torque command (N/mm)')            
             stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nDecay factor = %.1f\nUnit:%i\nSteps:%i'%(self.pid_p, self.pid_i, self.pid_d, self.exp_decay_factor, unit_index, self.num_points))
             bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5)
-            ax[unit_index-1].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax[0].transAxes, horizontalalignment='right')
-            ax[unit_index-1].set(ylim=(-6, 6))
-            ax[unit_index-1].legend()
-            ax[unit_index-1].grid()
+            ax[1].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax[1].transAxes, horizontalalignment='right')
+            # ax.set(ylim=(-6, 6))
+            ax[1].legend()
+            ax[1].grid()
 
 
 
@@ -627,10 +673,10 @@ class torque_transient_response_tester():
         # ax[2].grid()
 
         
-        save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_tester/multi_units_transient_response_test_fig/'
-        file_name = plot_name + '_kp%.1f_ki%.1f_kd%.1f'%(self.pid_p, self.pid_i, self.pid_d)
-        fig.savefig(save_dir + file_name + ".png")
-        plt.show()
+            save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_tester/multi_units_transient_response_test_fig/'
+            file_name = plot_name + '_kp%.1f_ki%.1f_kd%.1f_unit%d'%(self.pid_p, self.pid_i, self.pid_d, unit_index)
+            fig.savefig(save_dir + file_name + ".png")
+            plt.show()
 
 # def get_args():
 #     parser = argparse.ArgumentParser(description='script for testing planners')
@@ -653,6 +699,7 @@ if __name__ == '__main__':
         #tester.multi_setpoints_sine()
         #tester.disturbance_test()
 
-        tester.multi_static_performace_no_disturb(2.0, 5.0) #output 2 N for 30 seconds
+        tester.multi_loadcell_performace(20.0)
+        # tester.multi_static_performace_no_disturb(2.0, 20.0) #output 2 N for 30 seconds
         # tester.multi_setpoints_sine_with_disturb()
         # tester.multi_setpoints_wave_with_disturb()

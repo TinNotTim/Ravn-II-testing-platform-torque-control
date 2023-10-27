@@ -44,10 +44,16 @@ r2_tor_ctl = raven2_CRTK_torque_controller.raven2_crtk_torque_controller(name_sp
 target_torques = np.zeros((7))  #assume these parameters are assignend by other higher controller 
 #the index here start's from 1-6
 target_torques[1] = 15.0 # 1 for motor 1
-#target_torques = np.ones((7)) * 40.0
+# target_torques[2] = 15.0 
+# target_torques[3] = 15.0 
+# target_torques[4] = 15.0 
+# target_torques[5] = 15.0 
+# target_torques[6] = 15.0 
+# target_torques = np.ones((7)) * 20.0
 
 while not rospy.is_shutdown():
-    r2_tor_ctl.pub_torque_command_with_comp(target_torques) # no force is given here, the node will listen to topic 'torque_cmd' for torque commands
+    # r2_tor_ctl.pub_torque_command_with_comp(target_torques) # no force is given here, the node will listen to topic 'torque_cmd' for torque commands
+    r2_tor_ctl.pub_torque_command(target_torques)
     r.sleep()
 
         

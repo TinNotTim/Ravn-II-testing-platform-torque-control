@@ -83,9 +83,9 @@ class raven2_crtk_torque_controller():
 
         #------------------------------
         #parameters for PID controller
-        self.force_pid_p = 3#10#13# p factor of force PID feedback control using load cell
-        self.force_pid_i = 0.2#1.0
-        self.force_pid_d = 1 
+        self.force_pid_p = 0#3#10#13# p factor of force PID feedback control using load cell
+        self.force_pid_i = 0#1.0
+        self.force_pid_d = 0 
         #parameter for threshold
         self.p_thresh = 1.0
         self.p_clip_thresh = 30.0

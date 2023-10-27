@@ -39,7 +39,7 @@ a_6 = 6.950519714026019931e-06 #calt_dyx_306
 a = [float(a_1), float(a_2), float(a_3), float(a_4), float(a_5), float(a_6)]
 b = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-exp_decay_factor = 0.1#0.2
+exp_decay_factor = 1#0.1#0.2
 force_pre = np.zeros(6)
 
 rospy.init_node('load_cell_driver', anonymous=True)

@@ -36,6 +36,7 @@ import crtk_msgs.msg # crtk_msgs/operating_state
 #todo import the msgs.type of raven state
 from raven_2.msg import raven_state
 import math
+import operator
 
 class raven2_crtk_torque_controller():
 
@@ -48,7 +49,7 @@ class raven2_crtk_torque_controller():
 
         #self.joint_velocity_factor = np.array([1e-5, 1e-5 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5]) # 1e-5 means target speed is 1.0cm (1e-5 m) per second
 
-        self.max_torque = 80.0 * np.ones(15) # 50 mNm, This is the max torque  
+        self.max_torque = 80.0 * np.ones(6) # 50 mNm, This is the max torque  
         self.rate_pub = 500 # !IMPT This is the publish rate of the motion command publisher. It must be tested, because it will affect the real time factor and thus affect the speed. If you are not sure or cannot test, use a large rate (such as 1000) can be safer.
         self.max_rate_move = 500 # This is a protection, if the time interval between 2 move command is shorter than 1/rate, the publisher will wait util 1/rate
         self.min_interval_move = 1.0/self.max_rate_move
