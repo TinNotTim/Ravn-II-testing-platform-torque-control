@@ -32,6 +32,7 @@ import sensor_msgs.msg
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
+import operator
 
 # adding torque controller folder to the system path
 sys.path.append('/home/supernova/raven2_CRTK_Python_controller/torque_controller')
@@ -469,7 +470,7 @@ class torque_transient_response_tester():
 
         #plot the load cell force
         test_name = 'static_performance_%dN_%dsec'%(test_force,test_time)
-        self.plotter(test_name)
+        self.input_output_plotter(test_name)
         self.data_logger(test_name)
 
         #release the tension
@@ -519,7 +520,7 @@ class torque_transient_response_tester():
         f.close()
 
 
-    def plotter(self, plot_name="test"):
+    def PID_output_plotter(self, plot_name="test"):
 
         for unit_index in self.testing_unit_indices:
             fig, ax = plt.subplots(3, figsize=(15,15))
@@ -569,6 +570,67 @@ class torque_transient_response_tester():
             fig.savefig(save_dir + file_name + ".png")
             plt.show()
 
+    #This plotter will plot the sensor reading and control signal in one plot
+    def input_output_plotter(self, plot_name="test"):
+
+    
+        fig, ax = plt.subplots(6, figsize=(15,15))
+        fig.suptitle(plot_name)
+        for unit_index in self.testing_unit_indices:
+            #plot the output, loadcell reading and error on the same plot
+            ax[unit_index-1].plot(self.load_cell_force_times, self.setpoints_plot[unit_index -1], label="setpoint")
+            ax[unit_index-1].plot(self.load_cell_force_times, self.load_cell_forces[unit_index -1], label="load cell force")
+            ax[unit_index-1].plot(self.load_cell_force_times, map(operator.sub, self.setpoints_plot[unit_index -1],self.load_cell_forces[unit_index -1]), label="error")
+            tor_que_reduce = np.array(self.tor_cmds[unit_index -1])/10
+            ax[unit_index-1].plot(self.load_cell_force_times, tor_que_reduce, label="torque cmd/10")
+            ax[unit_index-1].set(xlabel='time (s)', ylabel='force reading (N)')
+            ax[unit_index-1].set_title('unit %i'%(unit_index))
+            stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nDecay factor = %.1f\nUnit:%i\nSteps:%i'%(self.pid_p, self.pid_i, self.pid_d, self.exp_decay_factor, unit_index, self.num_points))
+            bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5)
+            ax[unit_index-1].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax[0].transAxes, horizontalalignment='right')
+            ax[unit_index-1].set(ylim=(-6, 6))
+            ax[unit_index-1].legend()
+            ax[unit_index-1].grid()
+
+
+
+        # #plot setpoints, load cell readings and pid terms in first graph
+        # #print("For debug - load_cell_force_times", self.load_cell_force_times, len(self.load_cell_force_times))
+        # #print("For debug - setpoints[unit_index -1]", self.setpoints_plot[unit_index -1], len(self.setpoints_plot[unit_index -1]))
+        # ax[0].plot(self.load_cell_force_times, self.setpoints_plot[unit_index -1], label="setpoint")
+        # ax[0].plot(self.load_cell_force_times, self.load_cell_forces[unit_index -1], label="load cell force")
+        # ax[0].set(xlabel='time (s)', ylabel='force reading (N)')
+        # ax[0].set_title("Output signal")
+
+        # #display the pid parameter
+        # # add text box for the statistics
+        # stats = ('Kp = %.1f\nKi = %.1f\nKd = %.1f\nDecay factor = %.1f\nUnit:%i\nSteps:%i'%(self.pid_p, self.pid_i, self.pid_d, self.exp_decay_factor, unit_index, self.num_points))
+        # bbox = dict(boxstyle='round', fc='blanchedalmond', ec='orange', alpha=0.5)
+        # ax[0].text(0.95, 0.07, stats, fontsize=9, bbox=bbox,transform=ax[0].transAxes, horizontalalignment='right')
+        # ax[0].set(ylim=(0, 6))
+        # ax[0].legend()
+        # ax[0].grid()
+
+        # #plot pid terms
+        # ax[1].plot(self.load_cell_force_times, self.p_terms[unit_index -1], label="p term")
+        # ax[1].plot(self.load_cell_force_times, self.i_terms[unit_index -1], label="i term")
+        # ax[1].plot(self.load_cell_force_times, self.d_terms[unit_index -1], label="d term")
+        # ax[1].set(xlabel='time (s)', ylabel='torque command (N/mm)')
+        # ax[1].set_title("PID values")
+        # ax[1].legend()
+        # ax[1].grid()
+
+        # #plot control signal
+        # ax[2].plot(self.load_cell_force_times, self.tor_cmds[unit_index -1])
+        # ax[2].set(xlabel='time (s)', ylabel='torque command (N/mm)')
+        # ax[2].set_title("Control Signal")
+        # ax[2].grid()
+
+        
+        save_dir = '/home/supernova/raven2_CRTK_Python_controller/torque_controller/transient_response_tester/multi_units_transient_response_test_fig/'
+        file_name = plot_name + '_kp%.1f_ki%.1f_kd%.1f'%(self.pid_p, self.pid_i, self.pid_d)
+        fig.savefig(save_dir + file_name + ".png")
+        plt.show()
 
 # def get_args():
 #     parser = argparse.ArgumentParser(description='script for testing planners')
@@ -583,7 +645,7 @@ if __name__ == '__main__':
         rospy.loginfo("Node is created")
 
         tester = torque_transient_response_tester()
-        #tester.plotter()
+        # tester.input_output_plotter()
         #tester.data_logger()
         # tester.pretension()
         #tester.step_response()
@@ -591,6 +653,6 @@ if __name__ == '__main__':
         #tester.multi_setpoints_sine()
         #tester.disturbance_test()
 
-        tester.multi_static_performace_no_disturb(2.0, 30.0) #output 2 N for 30 seconds
+        tester.multi_static_performace_no_disturb(2.0, 5.0) #output 2 N for 30 seconds
         # tester.multi_setpoints_sine_with_disturb()
         # tester.multi_setpoints_wave_with_disturb()
