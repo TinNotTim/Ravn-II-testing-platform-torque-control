@@ -48,6 +48,15 @@ lcf_pub = rospy.Publisher('load_cell_forces', sensor_msgs.msg.JointState, queue_
 ser = serial.Serial('/dev/ttyACM0', 115200)
 rospy.sleep(3)
 
+#--------Median Filter---------
+#decide a window
+window = 10
+counter =  window
+#create a queue as circular buffer
+buffer = np.empty()
+
+#--------Median Filter---------
+
 while not rospy.is_shutdown():
             
     bt = ser.readline()         # read a byte string
@@ -97,13 +106,32 @@ while not rospy.is_shutdown():
     # force_cur[5] = 0
     # for only one motor test -------------------
 
+    #--------Median Filter---------
+    #load the data into buffer
+    buffer.append(force_cur)
+    #before the buffer is filled, do nothing
+    if counter >= 0:
+        counter -= 1
+        continue
 
-    force_filtered = exp_decay_factor * force_cur + (1-exp_decay_factor) * force_pre
+
+    #buffer has enough data
+    #treat buffer as queue, remove the first element
+    buffer = buffer[1:]
+    print("For debug - buffer size = ", buffer.size)
+    #get the median of each reading
+    data = np.array(buffer).T
+    medians = [np.median(subarray) for subarray in data] 
+    #--------Median Filter---------
+
+
+    force_filtered = medians
+    # force_filtered = exp_decay_factor * force_cur + (1-exp_decay_factor) * force_pre
     msg = sensor_msgs.msg.JointState()
     msg.header.stamp = rospy.Time.now()
     msg.position[:] = force_filtered.flat
     lcf_pub.publish(msg)
     #force_pre = force_cur
-    force_pre = force_filtered
+    # force_pre = force_filtered
 
 
