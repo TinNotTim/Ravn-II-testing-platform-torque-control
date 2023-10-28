@@ -50,10 +50,10 @@ rospy.sleep(3)
 
 #--------Median Filter---------
 #decide a window
-window = 10
+window = 5
 counter =  window
 #create a queue as circular buffer
-buffer = np.empty()
+buffer = np.array([])
 
 #--------Median Filter---------
 
@@ -97,7 +97,7 @@ while not rospy.is_shutdown():
   
     # publish calibrated force
     force_cur = np.array([raw_readings[0]*a[0] + b[0], raw_readings[1]*a[1] + b[1], raw_readings[2]*a[2] + b[2], raw_readings[3]*a[3] + b[3], raw_readings[4]*a[4] + b[4], raw_readings[5]*a[5] + b[5]])
-
+    # print("For debug - force_cur size = ", force_cur.shape)
     # for only one motor test -------------------
     # force_cur[0] = 0
     # force_cur[1] = 0
@@ -108,20 +108,22 @@ while not rospy.is_shutdown():
 
     #--------Median Filter---------
     #load the data into buffer
-    buffer.append(force_cur)
+    buffer = np.append(buffer,force_cur)
+    # buffer.append(force_cur)
     #before the buffer is filled, do nothing
-    if counter >= 0:
+    if counter > 0:
         counter -= 1
         continue
 
 
     #buffer has enough data
     #treat buffer as queue, remove the first element
+    buffer = buffer.reshape(-1,6)
     buffer = buffer[1:]
-    print("For debug - buffer size = ", buffer.size)
+    # print("For debug - buffer size = ", buffer.shape)
     #get the median of each reading
     data = np.array(buffer).T
-    medians = [np.median(subarray) for subarray in data] 
+    medians = np.array([np.median(subarray) for subarray in data])
     #--------Median Filter---------
 
 
