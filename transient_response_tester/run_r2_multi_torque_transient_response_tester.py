@@ -623,6 +623,7 @@ class torque_transient_response_tester():
             ax[0].set(xlabel='time (s)', ylabel='force reading (N)') 
             ax[0].legend()
             ax[0].grid()
+            ax[0].set(ylim=(-6, 6))
             ax[0].set_title('unit %i'%(unit_index))
 
 
@@ -699,7 +700,7 @@ if __name__ == '__main__':
         #tester.multi_setpoints_sine()
         #tester.disturbance_test()
 
-        tester.multi_loadcell_performace(20.0)
-        # tester.multi_static_performace_no_disturb(2.0, 20.0) #output 2 N for 30 seconds
+        # tester.multi_loadcell_performace(20.0)
+        tester.multi_static_performace_no_disturb(2.0, 20.0) #output 2 N for 30 seconds
         # tester.multi_setpoints_sine_with_disturb()
         # tester.multi_setpoints_wave_with_disturb()

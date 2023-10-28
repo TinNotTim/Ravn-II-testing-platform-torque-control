@@ -39,7 +39,7 @@ a_6 = 6.950519714026019931e-06 #calt_dyx_306
 a = [float(a_1), float(a_2), float(a_3), float(a_4), float(a_5), float(a_6)]
 b = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-exp_decay_factor = 1#0.1#0.2
+exp_decay_factor = 0.5#0.1#0.2
 force_pre = np.zeros(6)
 
 rospy.init_node('load_cell_driver', anonymous=True)
@@ -97,7 +97,7 @@ while not rospy.is_shutdown():
   
     # publish calibrated force
     force_cur = np.array([raw_readings[0]*a[0] + b[0], raw_readings[1]*a[1] + b[1], raw_readings[2]*a[2] + b[2], raw_readings[3]*a[3] + b[3], raw_readings[4]*a[4] + b[4], raw_readings[5]*a[5] + b[5]])
-    # print("For debug - force_cur size = ", force_cur.shape)
+    # print("For debug - force_cur size = ", force_cur.shape, type(force_cur))
     # for only one motor test -------------------
     # force_cur[0] = 0
     # force_cur[1] = 0
@@ -127,13 +127,13 @@ while not rospy.is_shutdown():
     #--------Median Filter---------
 
 
-    force_filtered = medians
-    # force_filtered = exp_decay_factor * force_cur + (1-exp_decay_factor) * force_pre
+    # force_filtered = medians
+    force_filtered = exp_decay_factor * medians + (1-exp_decay_factor) * force_pre
     msg = sensor_msgs.msg.JointState()
     msg.header.stamp = rospy.Time.now()
     msg.position[:] = force_filtered.flat
     lcf_pub.publish(msg)
     #force_pre = force_cur
-    # force_pre = force_filtered
+    force_pre = force_filtered
 
 
