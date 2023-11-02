@@ -129,6 +129,7 @@ while not rospy.is_shutdown():
 
     # force_filtered = medians
     force_filtered = exp_decay_factor * medians + (1-exp_decay_factor) * force_pre
+    # force_filtered = exp_decay_factor * force_cur + (1-exp_decay_factor) * force_pre
     msg = sensor_msgs.msg.JointState()
     msg.header.stamp = rospy.Time.now()
     msg.position[:] = force_filtered.flat

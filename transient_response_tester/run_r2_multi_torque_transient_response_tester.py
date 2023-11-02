@@ -505,7 +505,7 @@ class torque_transient_response_tester():
         self.load_cell_start_record = False
 
         #plot the load cell force
-        test_name = 'loadcell_performance_%dsec'%(test_time)
+        test_name = 'loadcell_performance_noise_%dsec'%(test_time)
         self.input_output_plotter(test_name)
         self.data_logger(test_name)
 
@@ -700,7 +700,7 @@ if __name__ == '__main__':
         #tester.multi_setpoints_sine()
         #tester.disturbance_test()
 
-        # tester.multi_loadcell_performace(20.0)
-        tester.multi_static_performace_no_disturb(2.0, 20.0) #output 2 N for 30 seconds
+        tester.multi_loadcell_performace(20.0)
+        # tester.multi_static_performace_no_disturb(2.0, 20.0) #output 2 N for 30 seconds
         # tester.multi_setpoints_sine_with_disturb()
         # tester.multi_setpoints_wave_with_disturb()
