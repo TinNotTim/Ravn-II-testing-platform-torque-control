@@ -50,7 +50,7 @@ class raven2_crtk_torque_controller():
 
         #self.joint_velocity_factor = np.array([1e-5, 1e-5 1e-5, 1e-5, 1e-5, 1e-5, 1e-5, 1e-5]) # 1e-5 means target speed is 1.0cm (1e-5 m) per second
 
-        self.max_torque = 80.0 * np.ones(15) # 50 mNm, This is the max torque  
+        self.max_torque = 80.0 * np.ones(15) # 80 mNm, This is the max torque  
         self.rate_pub = 500 # !IMPT This is the publish rate of the motion command publisher. It must be tested, because it will affect the real time factor and thus affect the speed. If you are not sure or cannot test, use a large rate (such as 1000) can be safer.
         self.max_rate_move = 500 # This is a protection, if the time interval between 2 move command is shorter than 1/rate, the publisher will wait util 1/rate
         self.min_interval_move = 1.0/self.max_rate_move
@@ -83,21 +83,21 @@ class raven2_crtk_torque_controller():
 
         #------------------------------
         #parameters for PID controller
-        self.force_pid_p = 0#3#10#13# p factor of force PID feedback control using load cell
-        self.force_pid_i = 0#0.2#1.0
-        self.force_pid_d = 0#0.3 
+        self.force_pid_p = 8#13# p factor of force PID feedback control using load cell
+        self.force_pid_i = 0.3#1.0
+        self.force_pid_d = 0#0.3
         #parameter for threshold
         self.p_thresh = 1.0
         self.p_clip_thresh = 30.0
         self.d_thresh = 3.0
         self.d_clip_thresh = 30.0
         # Anti windup        
-        self.windupMax = 0
+        self.windupMax = np.zeros(15)#160.0 * np.ones(15)#
         # default value
         self.e_old = np.zeros(16)
         self.e_sum = np.zeros(16)
         self.e_cur = np.zeros(16)
-        self.e_window_size = 10
+        self.e_window_size = 5
         self.e_window = [0.0] * self.e_window_size
         self.t_cur = time.time()
         self.t_old = time.time()
@@ -299,11 +299,11 @@ class raven2_crtk_torque_controller():
             # cmd_comp[i] = self.tau_cmd_cur[i] + self.force_pid_p * (force_command[i] - self.load_cell_force[i])
 
             #anti windup mechanism
-            if self.windupMax != 0:
-                if self.e_sum[i] > self.windupMax:
-                    self.e_sum[i] = self.windupMax
-                elif self.e_sum[i] < -self.windupMax:
-                    self.e_sum[i] = -self.windupMax
+            if self.windupMax[i] != 0:
+                if self.e_sum[i] > self.windupMax[i]:
+                    self.e_sum[i] = self.windupMax[i]
+                elif self.e_sum[i] < -self.windupMax[i]:
+                    self.e_sum[i] = -self.windupMax[i]
             
             #update the error
             self.e_sum[i] = self.e_sum[i] + self.e_old[i]
@@ -317,8 +317,8 @@ class raven2_crtk_torque_controller():
             dt = self.t_cur - self.t_old
             #calculate the P, I, and D term, include the error and gain
             #create a threshold for p term
-            # p_term = self.force_pid_p * self.e_cur[i]
-            p_term = np.clip(np.sign(self.e_cur[i]) * ((self.force_pid_p * self.e_cur[i]) ** 2), -self.d_clip_thresh, self.d_clip_thresh)
+            p_term = self.force_pid_p * self.e_cur[i]
+            # p_term = np.clip(np.sign(self.e_cur[i]) * ((self.force_pid_p * self.e_cur[i]) ** 2), -self.d_clip_thresh, self.d_clip_thresh)
             if abs(p_term) < self.p_thresh:
                 p_term = 0.0            
             i_term = self.force_pid_i * (self.e_sum[i] + self.e_cur[i])
@@ -346,8 +346,8 @@ class raven2_crtk_torque_controller():
             if abs(cmd_comp[i]) > self.max_torque[i]:
                 print('[ERROR] control torque too large, motor ' + str(i) + ', control torque: ' + str(cmd_comp[i]))
                 print('Zero command is sent to all motor.')
-                cmd_comp = np.zeros((16))
-                return -1  
+                # cmd_comp = np.zeros((16))
+                # return -1  
         cmd_comp = cmd_comp.clip(-8.0, 80.0)
         self.tau_cmd_cur = cmd_comp[:]
         self.t_old = self.t_cur

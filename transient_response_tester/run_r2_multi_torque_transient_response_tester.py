@@ -70,7 +70,7 @@ class torque_transient_response_tester():
 
         #parameters for generate sine and cosine wave
         self.num_points = 2000
-        self.amplitude = 2 
+        self.amplitude = 1 
         self.total_time = 100.0 #unit: second
 
         #variable for load cell reading
@@ -104,7 +104,7 @@ class torque_transient_response_tester():
         #print("For debug - self.pid_p = ", self.pid_p)
         del self.torque_controller
 
-        self.exp_decay_factor = 0.1 #0.2
+        self.exp_decay_factor = 0.4 #0.2
 
         #create publisher for torque command
         self.__publisher_torque_cmd = rospy.Publisher('torque_cmd', sensor_msgs.msg.JointState, latch = True, queue_size = 1)
@@ -406,8 +406,12 @@ class torque_transient_response_tester():
     #have the raven run random trajectory, and let force unit output a sine wave torque, see how well it follows it
     #let the unit4 do cosine wave, and let unit5 sine wave
     def multi_setpoints_wave_with_disturb(self):
-        self.setpoints[4 -1] = self.gen_cosine_wave()
-        self.setpoints[5 -1] = self.gen_sine_wave()
+
+        #construct setpoints
+        for unit_index in self.testing_unit_indices:
+            self.setpoints[unit_index - 1] = self.gen_sine_wave()
+        # self.setpoints[4 -1] = self.gen_cosine_wave()
+        # self.setpoints[5 -1] = self.gen_sine_wave()
         #print("For debug - setpoints[4-1] =", self.setpoints[4-1])
         #print("For debug - setpoints[5-1] =", self.setpoints[5-1])
 
@@ -436,7 +440,7 @@ class torque_transient_response_tester():
 
         #plot the load cell force
         test_name = "multi_setpoints_wave_with_disturb_no_wire_guide"
-        self.plotter(test_name)
+        self.PID_output_plotter(test_name)
         self.data_logger(test_name)
 
         #release the tension
@@ -700,7 +704,7 @@ if __name__ == '__main__':
         #tester.multi_setpoints_sine()
         #tester.disturbance_test()
 
-        tester.multi_loadcell_performace(20.0)
+        # tester.multi_loadcell_performace(20.0)
         # tester.multi_static_performace_no_disturb(2.0, 20.0) #output 2 N for 30 seconds
         # tester.multi_setpoints_sine_with_disturb()
-        # tester.multi_setpoints_wave_with_disturb()
+        tester.multi_setpoints_wave_with_disturb()
