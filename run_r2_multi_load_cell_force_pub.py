@@ -4,9 +4,13 @@ import time
 import numpy as np
 import rospy
 import sensor_msgs.msg
+import struct
+
+# Specify the amount of loadcell
+loadcell_num = 6
 
 # [IMPT] Make sure that all motors have lose cable (0 force) when starting this code, will do zeroing first
-calibration = True   # if true, will do calibration. If false, need to provide offset 'b'
+calibration = False   # if true, will do calibration. If false, need to provide offset 'b'
 calibration_num = 3000
 buffer_clear_num = 3000 # this is to skip the readings at beginning to clear buffer
 calibration_list = []
@@ -35,12 +39,26 @@ a_4 = 7.187360987744082061e-06 #CZL_601
 a_5 = 7.304287888493677691e-06 #GUANG_CE_3
 a_6 = 6.950519714026019931e-06 #calt_dyx_306
 
-
+# Specify the calibration for loadcell reading, sensor model is ax + b
 a = [float(a_1), float(a_2), float(a_3), float(a_4), float(a_5), float(a_6)]
 b = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
+# Specify the variable for raw sensor reading
+raw_readings = np.empty(loadcell_num, int)
+
+#--------Median Filter---------
+#decide a window
+window = 5
+counter =  window
+#create a circular buffer
+buffer = np.empty((window, loadcell_num), float)
+# This index point to the next position of the last object in the buffer 
+end_idx = 0 
+
+#--------Median Filter---------
+
 exp_decay_factor = 0.4#0.1#0.2
-force_pre = np.zeros(6)
+force_pre = np.zeros(loadcell_num)
 
 rospy.init_node('load_cell_driver', anonymous=True)
 lcf_pub = rospy.Publisher('load_cell_forces', sensor_msgs.msg.JointState, queue_size=1)
@@ -48,31 +66,35 @@ lcf_pub = rospy.Publisher('load_cell_forces', sensor_msgs.msg.JointState, queue_
 ser = serial.Serial('/dev/ttyACM0', 115200)
 rospy.sleep(3)
 
-#--------Median Filter---------
-#decide a window
-window = 5
-counter =  window
-#create a queue as circular buffer
-buffer = np.array([])
 
-#--------Median Filter---------
 
 while not rospy.is_shutdown():
-            
-    bt = ser.readline()         # read a byte string
-    try:
-        string_n = bt.decode()      # decode byte string into Unicode  
-        string = string_n.rstrip() # remove \n and \r
-    except:
-        continue
-    
-    try:
-        [reading_1, reading_2, reading_3, reading_4, reading_5, reading_6] = string.split('_')
-    except:
-        continue
 
-    # publish raw reading
-    raw_readings = [int(reading_1), int(reading_2), int(reading_3), int(reading_4), int(reading_5), int(reading_6)]
+    if ser.in_waiting >= loadcell_num * size(int):
+        byte_arry = ser.read(loadcell_num * size(int))         # read a byte array of 6 int32
+
+        msg = sensor_msgs.msg.JointState()
+        msg.header.stamp = rospy.Time.now()
+
+        # Decode the byte array into int32
+        for i in range(loadcell_num):
+            # unpack every 4 bytes in the array into an int (little endian)
+            raw_readings[i] = struct.unpack('<i',byte_arry[(0 + i * size(int)) : (size(int) + i * size(int))])
+            
+    # bt = ser.readline()         # read a byte string
+    # try:
+    #     string_n = bt.decode()      # decode byte string into Unicode  
+    #     string = string_n.rstrip() # remove \n and \r
+    # except:
+    #     continue
+    
+    # try:
+    #     [reading_1, reading_2, reading_3, reading_4, reading_5, reading_6] = string.split('_')
+    # except:
+    #     continue
+
+    # # publish raw reading
+    # raw_readings = [int(reading_1), int(reading_2), int(reading_3), int(reading_4), int(reading_5), int(reading_6)]
     # print("For debug - raw_readings = ", raw_readings)
     
     if calibration:
@@ -108,7 +130,10 @@ while not rospy.is_shutdown():
 
     #--------Median Filter---------
     #load the data into buffer
-    buffer = np.append(buffer,force_cur)
+    # buffer = np.append(buffer,force_cur)
+    buffer[end_idx] = force_cur
+    # increment the end index with wrap around
+    end_idx = (end_idx + 1) % window
     # buffer.append(force_cur)
     #before the buffer is filled, do nothing
     if counter > 0:
@@ -118,8 +143,8 @@ while not rospy.is_shutdown():
 
     #buffer has enough data
     #treat buffer as queue, remove the first element
-    buffer = buffer.reshape(-1,6)
-    buffer = buffer[1:]
+    # buffer = buffer.reshape(-1,6)
+    # buffer = buffer[1:]
     # print("For debug - buffer size = ", buffer.shape)
     #get the median of each reading
     data = np.array(buffer).T
