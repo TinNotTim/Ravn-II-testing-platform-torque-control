@@ -44,14 +44,14 @@ a = [float(a_1), float(a_2), float(a_3), float(a_4), float(a_5), float(a_6)]
 b = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
 # Specify the variable for raw sensor reading
-raw_readings = np.empty(loadcell_num, int)
+raw_readings = np.empty(loadcell_num, float)
 
 #--------Median Filter---------
 #decide a window
 window = 5
 counter =  window
 #create a circular buffer
-buffer = np.empty((window, loadcell_num), float)
+filter_buffer = np.empty((window, loadcell_num), float)
 # This index point to the next position of the last object in the buffer 
 end_idx = 0 
 
@@ -66,36 +66,37 @@ lcf_pub = rospy.Publisher('load_cell_forces', sensor_msgs.msg.JointState, queue_
 ser = serial.Serial('/dev/ttyACM0', 115200)
 rospy.sleep(3)
 
+# Communication handshake
+INIT = 'I'
+SIG_PC = 'S'
+ACK = 'A'
 
+while True:
+    if ser.in_waiting > 0:
+        received = ser.read(size=1)
+        # Arduino has done initialization
+        if received == INIT:
+            ser.reset_output_buffer()
+            # Signal the arduino to start data transmission
+            ser.write(SIG_PC)
+            break
 
 while not rospy.is_shutdown():
 
-    if ser.in_waiting >= loadcell_num * size(int):
-        byte_arry = ser.read(loadcell_num * size(int))         # read a byte array of 6 int32
+    # Receive the raw reading from Arduino
+    if ser.in_waiting >= loadcell_num * 4:
+        byte_arry = ser.read(loadcell_num * 4)         # read a byte array of 6 int32
 
         msg = sensor_msgs.msg.JointState()
         msg.header.stamp = rospy.Time.now()
 
         # Decode the byte array into int32
         for i in range(loadcell_num):
+            # prepare buffer for unpacked
+            buff = byte_arry[(0 + i * 4) : (4 + i * 4)]
             # unpack every 4 bytes in the array into an int (little endian)
-            raw_readings[i] = struct.unpack('<i',byte_arry[(0 + i * size(int)) : (size(int) + i * size(int))])
+            raw_readings[i] = (float)(struct.unpack_from('<i', buff, 0)[0]) / 256
             
-    # bt = ser.readline()         # read a byte string
-    # try:
-    #     string_n = bt.decode()      # decode byte string into Unicode  
-    #     string = string_n.rstrip() # remove \n and \r
-    # except:
-    #     continue
-    
-    # try:
-    #     [reading_1, reading_2, reading_3, reading_4, reading_5, reading_6] = string.split('_')
-    # except:
-    #     continue
-
-    # # publish raw reading
-    # raw_readings = [int(reading_1), int(reading_2), int(reading_3), int(reading_4), int(reading_5), int(reading_6)]
-    # print("For debug - raw_readings = ", raw_readings)
     
     if calibration:
         cali_count = 0
@@ -131,9 +132,10 @@ while not rospy.is_shutdown():
     #--------Median Filter---------
     #load the data into buffer
     # buffer = np.append(buffer,force_cur)
-    buffer[end_idx] = force_cur
+    filter_buffer[end_idx] = force_cur
     # increment the end index with wrap around
     end_idx = (end_idx + 1) % window
+    # print(end_idx)
     # buffer.append(force_cur)
     #before the buffer is filled, do nothing
     if counter > 0:
@@ -147,7 +149,7 @@ while not rospy.is_shutdown():
     # buffer = buffer[1:]
     # print("For debug - buffer size = ", buffer.shape)
     #get the median of each reading
-    data = np.array(buffer).T
+    data = np.array(filter_buffer).T
     medians = np.array([np.median(subarray) for subarray in data])
     #--------Median Filter---------
 
